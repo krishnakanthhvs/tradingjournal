@@ -18,9 +18,3 @@ if ($host === 'mydailydiary.space' || $host === 'www.mydailydiary.space') {
     $db_pass = '5!7rc^Yn';
     $db_name = 'u788563593_mydailydairy';
 }
-
-// Define constants used across the app
-define('DB_HOST', $db_host);
-define('DB_USER', $db_user);
-define('DB_PASS', $db_pass);
-define('DB_NAME', $db_name);
