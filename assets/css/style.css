@@ -63,11 +63,15 @@ body {
 .sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    font-size: 1.15rem;
-    font-weight: 600;
-    margin-bottom: 1.75rem;
-    color: #f9fafb;
+    justify-content: center;
+    padding: 0.4rem 0 0.9rem 0;
+}
+
+.sidebar-logo {
+    max-width: 160px;
+    width: 100%;
+    height: auto;
+    display: block;
 }
 
 .sidebar-nav a {
@@ -548,13 +552,16 @@ th {
 
 /* Logo */
 .login-logo {
-    font-weight: 700;
-    font-size: 1.4rem;
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 2rem;
-    color: var(--login-primary);
+    margin-bottom: 1.5rem;
+}
+
+.login-logo-img {
+    max-width: 300px;
+    height: auto;
+    display: block;
 }
 
 .login-logo i {

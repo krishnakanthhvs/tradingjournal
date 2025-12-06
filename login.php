@@ -58,6 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login - Trading Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/img/favicon.png" sizes="32x32">
+
     <!-- Main styles (add login CSS in this file, below) -->
     <link rel="stylesheet" href="assets/css/style.css">
 
@@ -88,8 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- RIGHT: Login form -->
         <div class="login-form-col">
             <div class="login-logo">
-                <i class="fa-solid fa-chart-line"></i>
-                <span>Trading Journal</span>
+                <img src="assets/img/logo_without_bg.png" alt="Trading Journal" class="login-logo-img">
             </div>
 
             <h2 class="login-title">Login</h2>

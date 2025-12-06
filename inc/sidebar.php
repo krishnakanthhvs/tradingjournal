@@ -7,8 +7,7 @@ if (!isset($activePage)) {
 
 <aside class="sidebar">
     <div class="sidebar-brand">
-        <i class="fa-solid fa-chart-line"></i>
-        <span>Trading Journal</span>
+        <img src="assets/img/logo_without_bg.png" alt="Trading Journal" class="sidebar-logo">
     </div>
 
     <nav class="sidebar-nav">
