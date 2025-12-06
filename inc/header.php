@@ -5,7 +5,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <title>Trading Dashboard</title>
+    <title>My Daily Dairy</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="assets/css/style.css">
     <!-- jQuery (for DataTables / Select2 convenience) -->
