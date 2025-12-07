@@ -7,9 +7,9 @@ $host = $_SERVER['HTTP_HOST'] ?? '';
 if ($host === 'mydailydiary.space' || $host === 'www.mydailydiary.space') {
     // LIVE DATABASE
     define('DB_HOST', 'localhost');
-    define('DB_USER', 'u788563593_mdd_user');  
+    define('DB_USER', 'u788563593_mydailydairy');
     define('DB_PASS', '7^!iT!E;n'); 
-    define('DB_NAME', 'u788563593_mdd_db');    
+    define('DB_NAME', 'u788563593_mydailydairy');
 } else {
     // LOCAL DATABASE
     define('DB_HOST', 'localhost');
