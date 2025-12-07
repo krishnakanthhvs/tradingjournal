@@ -15,6 +15,6 @@ if ($host === 'mydailydiary.space' || $host === 'www.mydailydiary.space') {
     // Production DB credentials
     $db_host = '127.0.0.1';      // Change if remote
     $db_user = 'u788563593_mydailydairy';
-    $db_pass = '5!7rc^Yn';
+    $db_pass = '7^!iT!E;n';
     $db_name = 'u788563593_mydailydairy';
 }
