@@ -932,26 +932,13 @@ th {
 
 .strategy-body {
     display: none;
-    padding: 0.75rem 1rem 1rem;
-    border-top: 1px solid #e5e7eb;
-    background: #fafafa;
+    padding: 0.6rem 1.75rem 0.8rem;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 0.85rem;
 }
 
 .strategy-body.open {
     display: block;
-}
-
-.strategy-desc {
-    max-height: 260px;        /* adjust as you like */
-    overflow-y: auto;
-    margin-bottom: 0.75rem;
-}
-
-.strategy-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 0.5rem;
-    margin-top: 0.75rem;
-    background: #ffffff;
 }
 
 .badge-enabled {
