@@ -1,6 +1,11 @@
 <?php
 // inc/functions.php
+// Updated 2025-12-09 - supports per-trade rows, per-trade screenshots,
+// session-level opening/closing/profit/loss, robust handling of missing inputs.
 
+// -----------------------------------------------------------------------------
+// Basic app helpers
+// -----------------------------------------------------------------------------
 function app_start_protected() {
     // Common includes for authenticated pages
     require_once __DIR__ . '/auth.php';
@@ -21,6 +26,9 @@ function get_current_name() {
     return $_SESSION['name'] ?? '';
 }
 
+// -----------------------------------------------------------------------------
+// Strategy templates
+// -----------------------------------------------------------------------------
 function get_user_strategy_templates(mysqli $mysqli, int $userId, bool $onlyEnabled = true): array
 {
     $rows = [];
@@ -49,6 +57,9 @@ function get_user_strategy_templates(mysqli $mysqli, int $userId, bool $onlyEnab
     return $rows;
 }
 
+// -----------------------------------------------------------------------------
+// Monthly capital helpers
+// -----------------------------------------------------------------------------
 function get_user_monthly_capital_info(mysqli $mysqli, int $userId, int $year, int $month): array {
     $sql = "SELECT capital, locked FROM user_monthly_capital WHERE user_id = ? AND year = ? AND month = ? LIMIT 1";
     $capital = 0.0;
@@ -93,110 +104,255 @@ function set_user_monthly_capital(mysqli $mysqli, int $userId, int $year, int $m
     return false;
 }
 
-/**
- * Insert a trade for the current user.
- * Returns an array: ['success' => bool, 'message' => string]
- */
+// -----------------------------------------------------------------------------
+// Trade insert: session-level fields + per-trade arrays + per-trade screenshot(s)
+// This inserts one DB row per trade (useful for per-trade analysis).
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Trade insert: session-level fields + per-trade arrays + per-trade screenshot(s)
+// -----------------------------------------------------------------------------
 function handle_trade_insert(mysqli $mysqli, int $userId): array {
-    $trade_no      = trim($_POST['trade_no'] ?? '');
-    $trade_date    = trim($_POST['trade_date'] ?? '');
-    $day           = trim($_POST['day'] ?? '');
-    $no_trades     = trim($_POST['no_trades'] ?? '');
-    $opening_bal   = trim($_POST['opening_bal'] ?? '');
-    $closing_bal   = trim($_POST['closing_bal'] ?? '');
-    $profit        = trim($_POST['profit'] ?? '');
-    $loss          = trim($_POST['loss'] ?? '');
-    $setup_type    = trim($_POST['setup_type'] ?? '');
-    $entry_reason  = trim($_POST['entry_reason'] ?? '');
-    $rule_followed = trim($_POST['rule_followed'] ?? '');
-    $emotion       = trim($_POST['emotion'] ?? '');
-    $strategy_tags = trim($_POST['strategy_tags'] ?? '');
-    $mistake_tags  = trim($_POST['mistake_tags'] ?? '');
-    $notes         = trim($_POST['notes'] ?? '');
+    // Session-level fields
+    $trade_no    = trim($_POST['trade_no'] ?? '');
+    $trade_date  = trim($_POST['trade_date'] ?? '');
+    $day         = trim($_POST['day'] ?? '');
+    $no_trades   = (int)($_POST['no_trades'] ?? 1);
 
-    // Basic validation
+    // Session-level opening/closing/profit/loss (single values)
+    $opening_bal = isset($_POST['opening_bal']) && $_POST['opening_bal'] !== '' ? (float)$_POST['opening_bal'] : null;
+    $closing_bal = isset($_POST['closing_bal']) && $_POST['closing_bal'] !== '' ? (float)$_POST['closing_bal'] : null;
+    $profit      = isset($_POST['profit']) && $_POST['profit'] !== '' ? (float)$_POST['profit'] : 0.0;
+    $loss        = isset($_POST['loss']) && $_POST['loss'] !== '' ? (float)$_POST['loss'] : 0.0;
+
+    // Per-trade arrays
+    $arr_option_strike    = isset($_POST['option_strike']) ? (array)$_POST['option_strike'] : [];
+    $arr_option_type      = isset($_POST['option_type']) ? (array)$_POST['option_type'] : [];
+    $arr_underlying_close = isset($_POST['underlying_close']) ? (array)$_POST['underlying_close'] : [];
+    $arr_setup_type       = isset($_POST['setup_type']) ? (array)$_POST['setup_type'] : [];
+    $arr_entry_reason     = isset($_POST['entry_reason']) ? (array)$_POST['entry_reason'] : [];
+    $arr_rule_followed    = isset($_POST['rule_followed']) ? (array)$_POST['rule_followed'] : [];
+    $arr_emotion          = isset($_POST['emotion']) ? (array)$_POST['emotion'] : [];
+    $arr_strategy_tags    = isset($_POST['strategy_tags']) ? (array)$_POST['strategy_tags'] : [];
+    $arr_mistake_tags     = isset($_POST['mistake_tags']) ? (array)$_POST['mistake_tags'] : [];
+    $arr_notes            = isset($_POST['notes']) ? (array)$_POST['notes'] : [];
+
+    // Normalize arrays to length $no_trades (fill missing with null/empty)
+    $normalize = function(array $a, int $n, $default = null) {
+        $out = [];
+        for ($i = 0; $i < $n; $i++) {
+            if (array_key_exists($i, $a)) {
+                $v = $a[$i];
+                if ($v === '') $v = $default;
+                $out[$i] = $v;
+            } else {
+                $out[$i] = $default;
+            }
+        }
+        return $out;
+    };
+
+    if ($no_trades < 1) $no_trades = 1;
+    $arr_option_strike    = $normalize($arr_option_strike, $no_trades, null);
+    $arr_option_type      = $normalize($arr_option_type, $no_trades, null);
+    $arr_underlying_close = $normalize($arr_underlying_close, $no_trades, null);
+    $arr_setup_type       = $normalize($arr_setup_type, $no_trades, null);
+    $arr_entry_reason     = $normalize($arr_entry_reason, $no_trades, null);
+    $arr_rule_followed    = $normalize($arr_rule_followed, $no_trades, null);
+    $arr_emotion          = $normalize($arr_emotion, $no_trades, null);
+    $arr_strategy_tags    = $normalize($arr_strategy_tags, $no_trades, null);
+    $arr_mistake_tags     = $normalize($arr_mistake_tags, $no_trades, null);
+    $arr_notes            = $normalize($arr_notes, $no_trades, null);
+
+    // Validate minimal required fields
     if ($trade_no === '' || $trade_date === '') {
         return ['success' => false, 'message' => 'Trade # and Date are required.'];
     }
 
-    // File upload (screenshot)
-    $screenshot_path = null;
-    if (!empty($_FILES['screenshot']['name'])) {
+    // Handle file uploads: support per-trade files named screenshot[] OR single screenshot
+    $uploaded_paths = array_fill(0, $no_trades, null);
+
+    // Helper to save a single uploaded file entry
+    $saveUploadedFile = function($fileName, $fileTmp) {
+        $allowed = ['png','jpg','jpeg','gif','webp'];
+        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed, true)) {
+            return ['ok' => false, 'msg' => 'Invalid screenshot file type.'];
+        }
         $uploadDir = __DIR__ . '/../uploads/trade_screenshots/';
         if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0777, true);
+            if (!@mkdir($uploadDir, 0777, true) && !is_dir($uploadDir)) {
+                return ['ok' => false, 'msg' => 'Failed to create upload directory.'];
+            }
         }
-        $ext = pathinfo($_FILES['screenshot']['name'], PATHINFO_EXTENSION);
         $safeName = 'shot_' . time() . '_' . mt_rand(1000,9999) . '.' . preg_replace('/[^a-zA-Z0-9]/', '', $ext);
         $target = $uploadDir . $safeName;
-
-        $allowed = ['png','jpg','jpeg','gif','webp'];
-        if (!in_array(strtolower($ext), $allowed)) {
-            return ['success' => false, 'message' => 'Invalid screenshot file type.'];
+        if (!move_uploaded_file($fileTmp, $target)) {
+            return ['ok' => false, 'msg' => 'Failed to move uploaded file.'];
         }
+        // Return web-path relative to project root
+        return ['ok' => true, 'path' => 'uploads/trade_screenshots/' . $safeName];
+    };
 
-        if (move_uploaded_file($_FILES['screenshot']['tmp_name'], $target)) {
-            $screenshot_path = 'uploads/trade_screenshots/' . $safeName;
-        } else {
-            return ['success' => false, 'message' => 'Failed to upload screenshot.'];
+    // Case A: multiple files via screenshot[] (typical if inputs named screenshot[])
+    if (!empty($_FILES['screenshot']['name']) && is_array($_FILES['screenshot']['name'])) {
+        for ($i = 0; $i < $no_trades; $i++) {
+            if (empty($_FILES['screenshot']['name'][$i])) {
+                $uploaded_paths[$i] = null;
+                continue;
+            }
+            $fileName = $_FILES['screenshot']['name'][$i];
+            $fileTmp  = $_FILES['screenshot']['tmp_name'][$i];
+            $res = $saveUploadedFile($fileName, $fileTmp);
+            if (!$res['ok']) {
+                foreach ($uploaded_paths as $p) {
+                    if ($p && is_file(__DIR__ . '/../' . $p)) @unlink(__DIR__ . '/../' . $p);
+                }
+                return ['success' => false, 'message' => $res['msg']];
+            }
+            $uploaded_paths[$i] = $res['path'];
         }
     }
-
-    $stmt = $mysqli->prepare('INSERT INTO trades
-        (user_id, trade_no, trade_date, day, no_trades, opening_bal, closing_bal, profit, loss,
-         setup_type, entry_reason, rule_followed, emotion, strategy_tags, mistake_tags, notes, screenshot_path)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    if (!$stmt) {
-        return ['success' => false, 'message' => 'Prepare failed: ' . $mysqli->error];
+    // Case B: single file input 'screenshot' (not array). We'll reuse same screenshot for all trades.
+    elseif (!empty($_FILES['screenshot']['name']) && is_string($_FILES['screenshot']['name'])) {
+        $res = $saveUploadedFile($_FILES['screenshot']['name'], $_FILES['screenshot']['tmp_name']);
+        if (!$res['ok']) {
+            return ['success' => false, 'message' => $res['msg']];
+        }
+        for ($i = 0; $i < $no_trades; $i++) {
+            $uploaded_paths[$i] = $res['path'];
+        }
     }
+    // else: no screenshots uploaded
 
-    $stmt->bind_param(
-        'isssiddddssssssss',
-        $userId,
-        $trade_no,
-        $trade_date,
-        $day,
-        $no_trades,
-        $opening_bal,
-        $closing_bal,
-        $profit,
-        $loss,
-        $setup_type,
-        $entry_reason,
-        $rule_followed,
-        $emotion,
-        $strategy_tags,
-        $mistake_tags,
-        $notes,
-        $screenshot_path
-    );
+    // Insert rows inside transaction
+    $mysqli->begin_transaction();
+    try {
+        $sql = 'INSERT INTO trades
+            (user_id, trade_no, trade_date, day, no_trades,
+             option_strike, option_type, underlying_close,
+             opening_bal, closing_bal, profit, loss,
+             setup_type, entry_reason, rule_followed, emotion,
+             strategy_tags, mistake_tags, notes, screenshot_path)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
-    if ($stmt->execute()) {
+        $stmt = $mysqli->prepare($sql);
+        if (!$stmt) {
+            $mysqli->rollback();
+            return ['success' => false, 'message' => 'Prepare failed: ' . $mysqli->error];
+        }
+
+        // FIX: types string must match the exact number of bound variables (20)
+        // Types:
+        // i - user_id
+        // s - trade_no
+        // s - trade_date
+        // s - day
+        // i - no_trades
+        // i - option_strike
+        // s - option_type
+        // d - underlying_close
+        // d - opening_bal
+        // d - closing_bal
+        // d - profit
+        // d - loss
+        // s - setup_type
+        // s - entry_reason
+        // s - rule_followed
+        // s - emotion
+        // s - strategy_tags
+        // s - mistake_tags
+        // s - notes
+        // s - screenshot_path
+        $types = 'isssiisdddddssssssss'; // exactly 20 characters matching 20 params
+
+        for ($i = 0; $i < $no_trades; $i++) {
+            $optStrike = $arr_option_strike[$i] !== null && $arr_option_strike[$i] !== '' ? (int)$arr_option_strike[$i] : null;
+            $optType   = $arr_option_type[$i] !== null ? trim($arr_option_type[$i]) : null;
+            $uCloseRaw = $arr_underlying_close[$i];
+            $uClose    = ($uCloseRaw !== null && $uCloseRaw !== '') ? (float)$uCloseRaw : null;
+
+            // Session-level numbers (opening/closing/profit/loss)
+            $oBal = $opening_bal !== null ? $opening_bal : null;
+            $cBal = $closing_bal !== null ? $closing_bal : null;
+            $prof = $profit !== null ? $profit : 0.0;
+            $los  = $loss !== null ? $loss : 0.0;
+
+            $s_type = $arr_setup_type[$i] !== null ? trim($arr_setup_type[$i]) : null;
+            $e_reason = $arr_entry_reason[$i] !== null ? trim($arr_entry_reason[$i]) : null;
+            $r_follow = $arr_rule_followed[$i] !== null ? trim($arr_rule_followed[$i]) : null;
+            $emotion  = $arr_emotion[$i] !== null ? trim($arr_emotion[$i]) : null;
+            $s_tags   = $arr_strategy_tags[$i] !== null ? trim($arr_strategy_tags[$i]) : null;
+            $m_tags   = $arr_mistake_tags[$i] !== null ? trim($arr_mistake_tags[$i]) : null;
+            $notes    = $arr_notes[$i] !== null ? trim($arr_notes[$i]) : null;
+            $screenshot_path = $uploaded_paths[$i] ?? null;
+
+            // Bind parameters by reference
+            if (!$stmt->bind_param(
+                $types,
+                $userId,
+                $trade_no,
+                $trade_date,
+                $day,
+                $no_trades,
+                $optStrike,
+                $optType,
+                $uClose,
+                $oBal,
+                $cBal,
+                $prof,
+                $los,
+                $s_type,
+                $e_reason,
+                $r_follow,
+                $emotion,
+                $s_tags,
+                $m_tags,
+                $notes,
+                $screenshot_path
+            )) {
+                $stmt->close();
+                $mysqli->rollback();
+                foreach ($uploaded_paths as $p) { if ($p && is_file(__DIR__ . '/../' . $p)) @unlink(__DIR__ . '/../' . $p); }
+                return ['success' => false, 'message' => 'bind_param failed: ' . $mysqli->error];
+            }
+
+            if (!$stmt->execute()) {
+                $stmt->close();
+                $mysqli->rollback();
+                foreach ($uploaded_paths as $p) { if ($p && is_file(__DIR__ . '/../' . $p)) @unlink(__DIR__ . '/../' . $p); }
+                return ['success' => false, 'message' => 'Error saving trade row: ' . $stmt->error];
+            }
+        }
+
         $stmt->close();
-        return ['success' => true, 'message' => 'Trade entry saved.'];
+        $mysqli->commit();
+        return ['success' => true, 'message' => 'Trade entry(s) saved.'];
+    } catch (Throwable $e) {
+        $mysqli->rollback();
+        foreach ($uploaded_paths as $p) { if ($p && is_file(__DIR__ . '/../' . $p)) @unlink(__DIR__ . '/../' . $p); }
+        error_log('handle_trade_insert error: ' . $e->getMessage());
+        return ['success' => false, 'message' => 'Exception saving trades: ' . $e->getMessage()];
     }
-
-    $msg = $stmt->error;
-    $stmt->close();
-    return ['success' => false, 'message' => 'Error saving trade: ' . $msg];
 }
 
-/**
- * Fetch all trades for a user (most recent first)
- */
+// -----------------------------------------------------------------------------
+// Fetch all trades for a user (most recent first).
+// Using SELECT * so missing optional columns won't cause a prepare-time error.
+// -----------------------------------------------------------------------------
 function get_trades_for_user(mysqli $mysqli, int $userId) {
-    $stmt = $mysqli->prepare('SELECT id, trade_no, trade_date, day, no_trades, opening_bal, closing_bal,
-                                     profit, loss, setup_type, entry_reason, rule_followed, emotion,
-                                     strategy_tags, mistake_tags, notes, screenshot_path, created_at
-                              FROM trades WHERE user_id = ? ORDER BY trade_date DESC, id DESC');
+    // Select all columns (safer if schema changes). Returns mysqli_result.
+    $stmt = $mysqli->prepare('SELECT * FROM trades WHERE user_id = ? ORDER BY trade_date DESC, id DESC');
+    if (!$stmt) {
+        throw new Exception('Prepare failed get_trades_for_user: ' . $mysqli->error);
+    }
     $stmt->bind_param('i', $userId);
     $stmt->execute();
     return $stmt->get_result();
 }
 
-/**
- * Check if a trade is editable (within 24 hours of creation)
- */
+// -----------------------------------------------------------------------------
+// Check if a trade is editable (within 24 hours of creation)
+// -----------------------------------------------------------------------------
 function is_trade_editable(array $tradeRow): bool {
     if (empty($tradeRow['created_at'])) {
         return false;
@@ -208,9 +364,9 @@ function is_trade_editable(array $tradeRow): bool {
     return (time() - $created) <= 24 * 60 * 60;
 }
 
-/**
- * Get dashboard statistics for a user.
- */
+// -----------------------------------------------------------------------------
+// Dashboard stats (unchanged except safe queries)
+// -----------------------------------------------------------------------------
 function get_dashboard_stats($mysqli, $userId)
 {
     $stats = [
@@ -486,11 +642,11 @@ function get_dashboard_stats($mysqli, $userId)
     return $stats;
 }
 
+// -----------------------------------------------------------------------------
+// Capital history (unchanged)
+// -----------------------------------------------------------------------------
 function get_capital_history(mysqli $mysqli, int $userId): array
 {
-    // We assume user_monthly_capital has: user_id, year, month, capital, locked
-    // and trades has: user_id, trade_date, profit, loss
-
     $sql = "
         SELECT
             umc.year,
@@ -514,7 +670,6 @@ function get_capital_history(mysqli $mysqli, int $userId): array
         $stmt->execute();
         $res = $stmt->get_result();
         while ($r = $res->fetch_assoc()) {
-            // Compute capital remaining = capital + total profit - total loss
             $capital      = (float)$r['capital'];
             $profit       = (float)$r['month_profit'];
             $loss         = (float)$r['month_loss'];
@@ -535,14 +690,14 @@ function get_capital_history(mysqli $mysqli, int $userId): array
     return $rows;
 }
 
+// -----------------------------------------------------------------------------
+// Small helpers
+// -----------------------------------------------------------------------------
 function format_trade_date($date) {
     $ts = strtotime($date);
     if (!$ts) return $date;
     return date('d-M-Y', $ts);
 }
-
-// --- Market helpers ----------------------------------------------------
-// --- Market helpers ----------------------------------------------------
 
 /**
  * Rough check if Indian cash market (NSE/BSE) is open.
