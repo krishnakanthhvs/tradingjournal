@@ -20,7 +20,7 @@ $pivots = calculate_pivots(
 );
 
 // Subject
-$subject = '📊 NIFTY 50 – Trading Levels (' . $nifty['date'] . ')';
+$subject = 'NIFTY 50 - Trading Levels (' . $nifty['date'] . ')';
 
 // Mail body
 $html = '
