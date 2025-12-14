@@ -1,7 +1,7 @@
 <?php
 // test_trading_mail.php
 
-$to = 'YOUR_EMAIL_ID@gmail.com'; // 🔴 change this
+$to = 'krishnakanthhanumanthu@gmail.com'; // 🔴 change this
 
 $date = date('d M Y', strtotime('-1 day'));
 
