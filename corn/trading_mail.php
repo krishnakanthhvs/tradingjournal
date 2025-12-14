@@ -42,3 +42,5 @@ $headers .= "From: MyDailyDiary <noreply@mydailydiary.space>\r\n";
 mail($to, $subject, $message, $headers);
 
 echo "✅ Real trading email sent";
+
+echo "<p>Sent at: <?php echo date('d-M-Y h:i:s A'); ?></p>";
