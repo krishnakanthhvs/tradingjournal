@@ -1,0 +1,12 @@
+{
+    "success": true,
+    "updated": "2026-01-29 15:32:35",
+    "lots": {
+        "NIFTY": 65,
+        "BANKNIFTY": 30,
+        "FINNIFTY": 60,
+        "MIDCPNIFTY": 120,
+        "SENSEX": 20,
+        "OTHER": 1
+    }
+}

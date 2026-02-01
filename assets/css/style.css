@@ -98,6 +98,42 @@ body {
     font-size: 1.05rem;
 }
 
+/* Hide native date text but keep picker */
+#trade_date {
+  color: #000;
+  caret-color: #000;
+}
+
+/* Show formatted text instead */
+#trade_date::before {
+  content: attr(data-pretty);
+  color: #000;
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Ensure proper positioning */
+.form-group {
+  position: relative;
+}
+#trade_date {
+  position: relative;
+}
+
+.instrument-checkboxes {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.instrument-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
 /* Content */
 
 .content {

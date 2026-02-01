@@ -46,7 +46,7 @@ if ($toast) {
             <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
                 <h2 class="card-title" style="margin-bottom:0;">Entries</h2>
                 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-                    <button class="btn" type="button" id="openAddTrade">Add Trade</button>
+                    <a class="btn" href="add_entry.php">Add Trade</a>
                     <a class="btn btn-secondary" href="export_trades.php?format=csv">Export CSV</a>
                 </div>
             </div>
@@ -166,220 +166,6 @@ if ($toast) {
     <?php require_once __DIR__ . '/inc/footer.php'; ?>
 </div>
 
-<!-- Add Trade Modal -->
-<div class="modal-backdrop" id="addTradeModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 class="card-title">Add Trade Entry</h2>
-      <button type="button" class="btn btn-small btn-secondary" id="closeAddTrade">Close</button>
-    </div>
-
-    <div class="modal-body">
-      <form id="tradeForm" method="post" enctype="multipart/form-data" action="entry_save.php">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="trade_no">Trade #</label>
-            <input type="text" id="trade_no" name="trade_no" value="<?php echo htmlspecialchars($nextTradeNo); ?>" readonly>
-          </div>
-
-          <div class="form-group">
-            <label for="trade_date">Date</label>
-            <input type="date" id="trade_date" name="trade_date" required>
-            <div id="trade_date_display" style="margin-top:4px;font-size:0.95rem;color:#333;"></div>
-          </div>
-
-          <div class="form-group">
-            <label for="day">Day</label>
-            <input type="text" id="day" name="day" readonly>
-          </div>
-
-          <div class="form-group">
-            <label for="no_trades">No of trades</label>
-            <select id="no_trades" name="no_trades">
-              <?php for ($i = 1; $i <= 50; $i++): ?>
-                <option value="<?php echo $i; ?>"><?php echo $i; ?></option>
-              <?php endfor; ?>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="instrument">Instrument (default)</label>
-            <select id="instrument" name="instrument" class="select2">
-              <option value="NIFTY">NIFTY</option>
-              <option value="BANKNIFTY">BANKNIFTY</option>
-              <option value="SENSEX">SENSEX</option>
-              <option value="FINNIFTY">FINNIFTY</option>
-              <option value="GOLD">GOLD</option>
-              <option value="SILVER">SILVER</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="lots">Number of lots (default)</label>
-            <input type="number" id="lots" name="lots" value="1" min="1" step="1">
-          </div>
-
-          <div class="form-group">
-            <label for="opening_bal">Opening Balance (Day)</label>
-            <input type="number" id="opening_bal" name="opening_bal" step="0.01">
-          </div>
-
-          <div class="form-group">
-            <label for="closing_bal">Closing Balance (Day)</label>
-            <input type="number" id="closing_bal" name="closing_bal" step="0.01">
-          </div>
-
-          <div class="form-group" id="total_profit_wrap">
-            <label for="profit">Total Profit (Day)</label>
-            <input type="number" id="profit" name="profit" step="0.01" readonly>
-          </div>
-
-          <div class="form-group" id="total_loss_wrap">
-            <label for="loss">Total Loss (Day)</label>
-            <input type="number" id="loss" name="loss" step="0.01" readonly>
-          </div>
-
-          <div class="form-group" style="grid-column: 3 / 4;">
-            <label for="screenshot">Screenshot (day-level fallback)</label>
-            <input type="file" id="screenshot" name="screenshot" accept="image/*">
-          </div>
-
-          <div id="perTradeContainer" style="grid-column:1 / -1; width:100%;"></div>
-        </div>
-
-        <div class="form-actions">
-          <button class="btn" type="submit">Save Entry</button>
-        </div>
-      </form>
-
-      <!-- per-trade template -->
-      <template id="perTradeTemplate">
-      <div class="per-trade-group card" style="padding:12px; margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <strong class="pt-title">Trade #X</strong>
-          <small class="text-muted">Fill details for this trade</small>
-        </div>
-
-        <div class="form-grid" style="margin-top:8px;">
-          <div class="form-group">
-            <label>Strike Taken</label>
-            <input type="number" name="option_strike[]" step="1" placeholder="e.g. 26000">
-          </div>
-
-          <div class="form-group">
-            <label>Option Type</label>
-            <select name="option_type[]" class="select2">
-              <option value="">Select</option>
-              <option value="CE">CE (Call)</option>
-              <option value="PE">PE (Put)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Closing point of the trade</label>
-            <input type="number" name="underlying_close[]" step="0.01" placeholder="e.g. 25980.25">
-          </div>
-
-          <div class="form-group">
-            <label>Entry Point</label>
-            <input type="number" name="entry_point[]" step="0.01" class="entry-point">
-          </div>
-
-          <div class="form-group">
-            <label>Exit Point</label>
-            <input type="number" name="exit_point[]" step="0.01" class="exit-point">
-          </div>
-
-          <div class="form-group">
-            <label>Lots</label>
-            <input type="number" name="lots[]" step="1" min="1" value="1" class="lots">
-          </div>
-
-          <div class="form-group">
-            <label>Instrument</label>
-            <select name="instrument[]" class="select2 instrument-select">
-              <option value="">(use day default)</option>
-              <option value="NIFTY">NIFTY</option>
-              <option value="BANKNIFTY">BANKNIFTY</option>
-              <option value="SENSEX">SENSEX</option>
-              <option value="FINNIFTY">FINNIFTY</option>
-              <option value="COMMODITY">COMMODITY</option>
-              <option value="OTHER">OTHER</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Profit in this trade</label>
-            <input type="number" name="trade_profit[]" step="0.01" readonly class="trade-profit">
-          </div>
-
-          <div class="form-group">
-            <label>Loss in this trade</label>
-            <input type="number" name="trade_loss[]" step="0.01" readonly class="trade-loss">
-          </div>
-
-          <div class="form-group">
-            <label>Setup Type</label>
-            <select name="setup_type[]" class="select2">
-              <option value="">Select / type...</option>
-              <?php if (!empty($strategies)): foreach ($strategies as $s): ?>
-                <option value="<?php echo htmlspecialchars($s['name']); ?>"><?php echo htmlspecialchars($s['name']); ?></option>
-              <?php endforeach; endif; ?>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Entry Reason</label>
-            <input type="text" name="entry_reason[]">
-          </div>
-
-          <div class="form-group">
-            <label>Rule Followed?</label>
-            <select name="rule_followed[]" class="select2">
-              <option value="">Select</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-              <option value="Partially">Partially</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Emotion</label>
-            <select name="emotion[]" class="select2">
-              <option value="">Select</option>
-              <option value="Calm">Calm</option>
-              <option value="Fearful">Fearful</option>
-              <option value="Greedy">Greedy</option>
-              <option value="Revenge">Revenge</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Strategy Tags</label>
-            <input name="strategy_tags[]" class="tagify" placeholder="comma separated">
-          </div>
-
-          <div class="form-group">
-            <label>Mistake Tags</label>
-            <input name="mistake_tags[]" class="tagify" placeholder="comma separated">
-          </div>
-
-          <div class="form-group" style="grid-column:1 / -1;">
-            <label>Screenshot (this trade)</label>
-            <input type="file" name="screenshot[]" accept="image/*">
-          </div>
-
-          <div class="form-group" style="grid-column:1 / -1;">
-            <label>Notes</label>
-            <textarea name="notes[]" rows="2" style="width:100%;"></textarea>
-          </div>
-        </div>
-      </div>
-      </template>
-    </div>
-  </div>
-</div>
-
 <!-- View Day Modal -->
 <div class="modal-backdrop" id="viewTradeModal">
   <div class="modal">
@@ -403,15 +189,19 @@ if ($toast) {
 
 <script>
 /* Client JS for behavior requested */
-const LOT_SIZES = {
-  'NIFTY': 75,
-  'BANKNIFTY': 15,
-  'SENSEX': 1,
-  'FINNIFTY': 40,
-  'GOLD': 1,
-  'SILVER': 15,
-  'OTHER': 1
-};
+let LOT_SIZES = { 'OTHER': 1 };
+
+fetch('/api/lot_sizes.php')
+  .then(r => r.json())
+  .then(res => {
+    if (res.success && res.lots) {
+      LOT_SIZES = res.lots;
+      console.log('Lot sizes loaded:', LOT_SIZES);
+    }
+  })
+  .catch(err => {
+    console.warn('Lot size fetch failed, using defaults', err);
+  });
 
 jQuery(function($){
 
@@ -420,10 +210,8 @@ jQuery(function($){
     if(!$.fn.select2) return;
     $c.find('select.select2').each(function(){
       if($(this).data('select2')) return;
-      var $modal = $(this).closest('#addTradeModal .modal');
       var cfg = { width: '100%' };
-      if($modal.length) cfg.dropdownParent = $modal;
-      $(this).select2(cfg);
+      $(this).select2({ width: '100%' });
     });
   }
   function initTagify($c){
@@ -500,33 +288,23 @@ jQuery(function($){
 
   // Calculate one group's profit/loss using instrument + lots
   function calcGroup($g){
-    var entry = parseFloat($g.find('input[name="entry_point[]"]').val()) || 0;
-    var exitv = parseFloat($g.find('input[name="exit_point[]"]').val()) || 0;
+    const entry = parseFloat($g.find('.entry-point').val()) || 0;
+    const exitv = parseFloat($g.find('.exit-point').val()) || 0;
+    const lots  = parseInt($g.find('.lots').val()) || 1;
+    const inst  = $g.find('.instrument-select').val() || 'NIFTY';
 
-    // choose instrument/lots: prefer per-trade, fallback to day default
-    var inst = $g.find('select[name="instrument[]"]').val() || $('#instrument').val() || 'OTHER';
-    var lots = parseInt($g.find('input[name="lots[]"]').val() || $('#lots').val() || '1',10);
-    if(isNaN(lots) || lots < 1) lots = 1;
-    var lotSize = LOT_SIZES[inst] || 1;
-    var multiplier = lotSize * lots;
+    const lotSize = LOT_SIZES[inst] || 1;
+    const pnl = (exitv - entry) * lotSize * lots;
 
-    var entryAmt = entry * multiplier;
-    var exitAmt  = exitv * multiplier;
-    var diff = exitAmt - entryAmt;
+    const $p = $g.find('.trade-profit');
+    const $l = $g.find('.trade-loss');
 
-    var $p = $g.find('input[name="trade_profit[]"]');
-    var $l = $g.find('input[name="trade_loss[]"]');
-
-    // reset colors first
-    $p.removeClass('text-profit text-loss');
-    $l.removeClass('text-profit text-loss');
-
-    if (diff > 0) {
-      $p.val(diff.toFixed(2)).addClass('text-profit');
+    if (pnl > 0) {
+      $p.val(pnl.toFixed(2));
       $l.val('0.00');
-    } else if (diff < 0) {
+    } else if (pnl < 0) {
       $p.val('0.00');
-      $l.val(Math.abs(diff).toFixed(2)).addClass('text-loss');
+      $l.val(Math.abs(pnl).toFixed(2));
     } else {
       $p.val('0.00');
       $l.val('0.00');
@@ -623,17 +401,6 @@ jQuery(function($){
     var n = parseInt($('#no_trades').val()||'1',10); if(isNaN(n)||n<1) n=1;
     renderGroups(n);
 
-    // keep date formatting & day name and display
-    $('#trade_date').on('change', function(){
-      var v = $(this).val();
-      $('#trade_date_display').text(formatDatePretty(v));
-      if(!v){ $('#day').val(''); return; }
-      var d = new Date(v);
-      if(isNaN(d.getTime())) { $('#day').val(''); return; }
-      var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-      $('#day').val(days[d.getDay()]);
-    });
-
     // keep instrument default text updated in existing groups when global default changes
     $('#instrument').on('change', function(){
       var dayDefault = $(this).val();
@@ -657,10 +424,6 @@ jQuery(function($){
     $('#lots').on('input change', function(){ $('#perTradeContainer .per-trade-group').each(function(){ calcGroup($(this)); }); recomputeTotals(); });
     $('#opening_bal, #closing_bal').on('input change', function(){ recomputeTotals(); });
 
-    // open/close modal
-    $('#openAddTrade').on('click', function(){ $('#addTradeModal').addClass('open'); setTimeout(function(){ initControls($('#addTradeModal')); }, 60); });
-    $('#closeAddTrade').on('click', function(){ $('#addTradeModal').removeClass('open'); });
-
     // view day
     $(document).on('click', '.btn-view-day', function(){
       var json = $(this).closest('tr').attr('data-trades');
@@ -673,8 +436,8 @@ jQuery(function($){
         var otype = r.option_type||'';
         var instrument = r.instrument|| (r.instrument??'');
         var lots = r.lots || '';
-        var entry = r.entry_point ?? r.opening_bal ?? '';
-        var exitv = r.exit_point ?? r.closing_bal ?? '';
+        var entry = r.entry_point ?? '';
+        var exitv = r.exit_point ?? '';
         var profit = r.trade_profit ?? r.profit ?? '';
         var loss = r.trade_loss ?? r.loss ?? '';
         var notes = r.notes ? $('<div>').text(r.notes).html() : '';
@@ -701,6 +464,127 @@ jQuery(function($){
     });
 
   }); // ready
+});
+
+function setNiftyTrend(open, close) {
+  if (close > open) return 'Bullish';
+  if (close < open) return 'Bearish';
+  return 'Sideways';
+}
+
+function ordinal(n) {
+  const s = ["th","st","nd","rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function formatPrettyDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${ordinal(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+$('#trade_date').on('change', function () {
+    const iso = this.value;
+    if (!iso) return;
+
+    const d = new Date(iso);
+    if (isNaN(d)) return;
+  
+    // ❌ Block Sundays
+    if (d.getDay() === 0) {
+        alert('Sundays are not allowed for trading.');
+        this.value = '';
+        $('#trade_date_pretty').text('');
+        $('#day').val('');
+        return;
+    }
+
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const ordinal = n => n + (['th','st','nd','rd'][(n%100-20)%10] || 'th');
+
+    // Pretty text
+    $('#trade_date_pretty').text(
+        `${ordinal(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}`
+    );
+
+    // Day
+    $('#day').val(days[d.getDay()]);
+
+    // Fetch NIFTY
+    fetch(`/api/nifty_ohlc.php?date=${iso}`)
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success) {
+                $('#nifty_open, #nifty_close, #nifty_points, #nifty_trend').val('');
+                return;
+            }
+            $('#nifty_open').val(res.open);
+            $('#nifty_close').val(res.close);
+            $('#nifty_points').val(res.points);
+            $('#nifty_trend').val(res.trend);
+        });
+
+    $('#trade_date').on('change', renderInstrumentMarkets);
+
+    document.querySelectorAll('.day-instrument').forEach(cb => {
+      cb.addEventListener('change', renderInstrumentMarkets);
+    });
+});
+
+const marketContainer = document.getElementById('instrumentMarketContainer');
+const marketTpl = document.getElementById('instrumentMarketTemplate');
+
+function fetchInstrumentOHLC(instrument, date, card) {
+  fetch(`/api/ohlc.php?symbol=${instrument}&date=${date}`)
+    .then(r => r.json())
+    .then(res => {
+      if (!res.success) {
+        card.querySelector('.inst-open').value = '';
+        card.querySelector('.inst-close').value = '';
+        card.querySelector('.inst-points').value = '';
+        card.querySelector('.inst-trend').value = '';
+        return;
+      }
+
+      card.querySelector('.inst-open').value   = res.open;
+      card.querySelector('.inst-close').value  = res.close;
+      card.querySelector('.inst-points').value = res.points;
+      card.querySelector('.inst-trend').value  = res.trend;
+    });
+}
+
+function renderInstrumentMarkets() {
+  const date = document.getElementById('trade_date').value;
+  if (!date) return;
+
+  marketContainer.innerHTML = '';
+
+  document.querySelectorAll('.day-instrument:checked').forEach(cb => {
+    const instrument = cb.value;
+
+    const node = marketTpl.content.cloneNode(true);
+    const card = node.querySelector('.instrument-market');
+
+    card.dataset.instrument = instrument;
+    card.querySelector('.card-title').textContent =
+      instrument + ' Market Summary';
+
+    marketContainer.appendChild(node);
+
+    fetchInstrumentOHLC(instrument, date, marketContainer.lastElementChild);
+  });
+}
+
+document.querySelectorAll('.day-instrument').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const date = document.getElementById('trade_date').value;
+    if (date) renderInstrumentMarkets(date);
+  });
 });
 </script>
 

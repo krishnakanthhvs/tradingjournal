@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/inc/db.php';
 require_once __DIR__ . '/inc/functions.php';
+require_once __DIR__ . '/inc/cache.php';
 
 app_start_protected();
 $userId = get_current_user_id();
+$nseHolidays = get_nse_holidays();
 
 // Handle monthly capital save from dashboard
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monthly_capital'])) {
@@ -24,10 +26,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['monthly_capital'])) {
 }
 
 // stats AFTER possible update
-$stats  = get_dashboard_stats($mysqli, $userId);
+$statsCacheKey = 'dashboard_stats_user_' . $userId;
+
+$stats = cache_get($statsCacheKey, 120); // 2 minutes
+
+if (!$stats) {
+    $stats = get_dashboard_stats($mysqli, $userId);
+    cache_set($statsCacheKey, $stats);
+}
 
 // Live market snapshot
-$market = get_market_snapshot();
+$market = cache_get('market_snapshot', 60); // 60 sec cache
+
+if (!$market) {
+    $market = get_market_snapshot();
+    cache_set('market_snapshot', $market);
+}
 
 // For the remaining days note
 $nowDT       = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
@@ -39,6 +53,15 @@ $toast = $_GET['toast'] ?? '';
 if ($toast) {
     echo '<script>document.addEventListener("DOMContentLoaded",function(){document.body.setAttribute("data-toast",' . json_encode($toast) . ');});</script>';
 }
+
+$monthlyCapital = (float)$stats['monthly_capital'];
+$monthlyPnl     = (float)$stats['monthly_pnl'];
+
+$monthlyPct = $monthlyCapital > 0
+    ? ($monthlyPnl / $monthlyCapital) * 100
+    : 0;
+
+$progressPct = max(min(abs($monthlyPct), 100), 0);
 ?>
 
 <div class="content">
@@ -68,7 +91,7 @@ if ($toast) {
                         // $market comes from get_market_snapshot()
 
                         // 1) Build dynamic order:
-                        $preferred = ['nifty', 'sensex', 'banknifty'];   // always first if available
+                        $preferred = ['nifty', 'sensex', 'banknifty', 'btc', 'eth'];   // always first if available
                         $ordered   = [];
 
                         // Add preferred in order (only if present)
@@ -103,43 +126,33 @@ if ($toast) {
 
                             // optional: support dynamic unit from backend, else fallback
                             $unit = $idx['unit'] ?? (
-                                in_array($key, ['pcr', 'usd_inr'], true)
+                                in_array($key, ['usd_inr'], true)
                                     ? ''      // no "pts" for these
                                     : ' pts'  // default for indices & VIX
                             );
                         ?>
-                            <div class="market-card <?php echo $cardClass; ?>">
+                            <div class="market-card <?php echo $cardClass; ?>" data-key="<?php echo $key; ?>">
                                 <div class="market-card-title">
-                                    <?php echo htmlspecialchars($idx['label'] ?? strtoupper($key)); ?>
+                                    <?php echo htmlspecialchars($idx['label']); ?>
                                 </div>
 
-                                <?php if ($last === null): ?>
-                                    <div class="market-card-body">
-                                        <span class="text-muted">Data not available</span>
+                                <div class="market-card-body">
+                                    <div class="market-last" data-field="last">
+                                        <?php echo $last !== null ? number_format((float)$last, 2) : '—'; ?>
                                     </div>
-                                <?php else: ?>
-                                    <div class="market-card-body">
-                                        <div class="market-last">
-                                            <?php echo number_format($last, 2); ?>
-                                        </div>
 
-                                        <?php if ($change !== null): ?>
-                                            <?php
-                                                $sign = $change > 0 ? '+' : ($change < 0 ? '−' : '');
-                                            ?>
-                                            <div class="market-change">
-                                                <span>
-                                                    <?php echo $sign . number_format(abs($change), 2) . $unit; ?>
+                                    <?php if ($change !== null): ?>
+                                        <?php $sign = $change > 0 ? '+' : ($change < 0 ? '−' : ''); ?>
+                                        <div class="market-change" data-field="change">
+                                            <?php echo $sign . number_format(abs($change), 2) . $unit; ?>
+                                            <?php if ($pct !== null): ?>
+                                                <span data-field="pct">
+                                                    (<?php echo $sign . number_format(abs($pct), 2); ?>%)
                                                 </span>
-                                                <?php if ($pct !== null): ?>
-                                                    <span class="market-change-pct">
-                                                        (<?php echo $sign . number_format(abs($pct), 2); ?>%)
-                                                    </span>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -259,57 +272,9 @@ if ($toast) {
         <!-- Performance summary + Equity curve -->
         <div class="columns-2">
             <div class="card">
-                <h3 class="card-title">Performance Summary</h3>
-                <div class="form-grid">
-                    <div>
-                        <div class="text-muted">Total Profit</div>
-                        <div>₹<?php echo number_format($stats['total_profit'], 2); ?></div>
-                    </div>
-                    <div>
-                        <div class="text-muted">Total Loss</div>
-                        <div>₹<?php echo number_format($stats['total_loss'], 2); ?></div>
-                    </div>
-                    <div>
-                        <div class="text-muted">Net P&amp;L</div>
-                        <div>
-                            <?php
-                            $net = $stats['net'];
-                            if ($net > 0) {
-                                echo '<span class="text-profit">₹' . number_format($net, 2) . '</span>';
-                            } elseif ($net < 0) {
-                                echo '<span class="text-loss">-₹' . number_format(abs($net), 2) . '</span>';
-                            } else {
-                                echo '₹0.00';
-                            }
-                            ?>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-muted">Trades</div>
-                        <div><?php echo (int)$stats['trade_count']; ?></div>
-                    </div>
-                    <div>
-                        <div class="text-muted">Win Rate</div>
-                        <div>
-                            <?php
-                            $wr = $stats['trade_count'] > 0 ? ($stats['wins'] / $stats['trade_count']) * 100 : 0;
-                            echo number_format($wr, 1) . '%';
-                            ?>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-muted">Avg P&amp;L / Trade</div>
-                        <div>₹<?php echo number_format($stats['avg_profit_per_trade'], 2); ?></div>
-                    </div>
-                    <div>
-                        <div class="text-muted">Best Setup Type</div>
-                        <div><?php echo $stats['best_setup'] ? htmlspecialchars($stats['best_setup']) : 'N/A'; ?></div>
-                    </div>
-                    <div>
-                        <div class="text-muted">Trades with Mistakes</div>
-                        <div><?php echo (int)$stats['mistake_trade_count']; ?></div>
-                    </div>
-                </div>
+                <h3 class="card-title">P&amp;L by Weekday</h3>
+                <p class="text-muted mt-1">Net P&amp;L aggregated by day of week</p>
+                <canvas id="weekdayChart" style="max-height:260px;"></canvas>
             </div>
 
             <div class="card">
@@ -319,69 +284,174 @@ if ($toast) {
         </div>
 
         <!-- P&L by weekday + Top 5 best/worst days -->
-        <div class="columns-2" style="margin-top: 1rem;">
-            <div class="card">
-                <h3 class="card-title">P&amp;L by Weekday</h3>
-                <p class="text-muted mt-1">Net P&amp;L aggregated by day of week</p>
-                <canvas id="weekdayChart" style="max-height:260px;"></canvas>
-            </div>
+        <div class="columns-2" style="margin-top:1rem;">
 
+            <!-- ================= PERFORMANCE SUMMARY CARD ================= -->
             <div class="card">
-                <h3 class="card-title">Best / Worst Days</h3>
-                <div class="columns-2">
+
+                <h3 class="card-title">Performance Summary</h3>
+
+                <!-- SUMMARY METRICS -->
+                <div class="form-grid" style="margin-bottom:1.25rem;">
                     <div>
-                        <h4 class="card-title" style="font-size:0.95rem;">Top 5 Best Days</h4>
+                        <div class="text-muted">Total Profit</div>
+                        <div class="text-profit">₹<?php echo number_format($stats['total_profit'], 2); ?></div>
+                    </div>
+
+                    <div>
+                        <div class="text-muted">Total Loss</div>
+                        <div class="text-loss">-₹<?php echo number_format($stats['total_loss'], 2); ?></div>
+                    </div>
+
+                    <div>
+                        <div class="text-muted">Net P&amp;L</div>
+                        <div>
+                            <?php
+                            echo $stats['net'] > 0
+                                ? '<span class="text-profit">₹' . number_format($stats['net'], 2) . '</span>'
+                                : ($stats['net'] < 0
+                                    ? '<span class="text-loss">-₹' . number_format(abs($stats['net']), 2) . '</span>'
+                                    : '₹0.00');
+                            ?>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-muted">Trades</div>
+                        <div><?php echo (int)$stats['trade_count']; ?></div>
+                    </div>
+
+                    <div>
+                        <div class="text-muted">Win Rate</div>
+                        <div>
+                            <?php echo number_format(
+                                $stats['trade_count'] ? ($stats['wins'] / $stats['trade_count']) * 100 : 0,
+                                1
+                            ); ?>%
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-muted">Avg P&amp;L / Trade</div>
+                        <div>₹<?php echo number_format($stats['avg_profit_per_trade'], 2); ?></div>
+                    </div>
+
+                    <div>
+                        <div class="text-muted">Best Setup</div>
+                        <div><?php echo $stats['best_setup'] ?: 'N/A'; ?></div>
+                    </div>
+
+                    <div>
+                        <div class="text-muted">Mistake Trades</div>
+                        <div><?php echo (int)$stats['mistake_trade_count']; ?></div>
+                    </div>
+                </div>
+
+                <hr class="divider">
+                <!-- MONTHLY PERFORMANCE -->
+                <h4 class="section-title" style="margin-top:0.5rem;">Monthly Performance</h4>
+
+                <div style="margin-top:0.5rem;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.9rem;">
+                        <span class="text-muted">P&amp;L %</span>
+                        <span class="<?php echo $monthlyPct >= 0 ? 'text-profit' : 'text-loss'; ?>">
+                            <?php echo number_format($monthlyPct, 2); ?>%
+                        </span>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div class="progress-fill <?php echo $monthlyPct >= 0 ? 'bg-profit' : 'bg-loss'; ?>"
+                            style="width:<?php echo $progressPct; ?>%"></div>
+                    </div>
+
+                    <div style="display:flex;justify-content:space-between;font-size:0.85rem; margin-bottom: 1rem">
+                        <span class="text-muted">Used: ₹<?php echo number_format(abs($monthlyPnl), 2); ?></span>
+                        <span class="text-muted">
+                            Remaining: ₹<?php echo number_format(
+                                max($monthlyCapital - abs($monthlyPnl), 0),
+                                2
+                            ); ?>
+                        </span>
+                    </div>
+                </div>                            
+
+                <hr class="divider">
+
+                <!-- BEST / WORST DAYS -->
+                <div class="columns-2" style="gap:1rem;">
+                    <div>
+                        <h4 class="section-title" style="margin-top: 1rem">Top 5 Best Days</h4>
                         <table class="table-compact">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Net P&amp;L</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Date</th><th>Net</th></tr></thead>
                             <tbody>
                             <?php if (empty($stats['best_days'])): ?>
                                 <tr><td colspan="2" class="text-muted">No data</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($stats['best_days'] as $d): ?>
-                                    <tr>
-                                        <td><?php echo format_trade_date($d['date']); ?></td>
-                                        <td class="text-profit">
-                                            ₹<?php echo number_format($d['net'], 2); ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                            <?php else: foreach ($stats['best_days'] as $d): ?>
+                                <tr>
+                                    <td><?php echo format_trade_date($d['date']); ?></td>
+                                    <td class="text-profit">₹<?php echo number_format($d['net'], 2); ?></td>
+                                </tr>
+                            <?php endforeach; endif; ?>
                             </tbody>
                         </table>
                     </div>
+
                     <div>
-                        <h4 class="card-title" style="font-size:0.95rem;">Top 5 Worst Days</h4>
+                        <h4 class="section-title" style="margin-top: 1rem">Top 5 Worst Days</h4>
                         <table class="table-compact">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Net P&amp;L</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Date</th><th>Net</th></tr></thead>
                             <tbody>
                             <?php if (empty($stats['worst_days'])): ?>
                                 <tr><td colspan="2" class="text-muted">No data</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($stats['worst_days'] as $d): ?>
-                                    <tr>
-                                        <td><?php echo format_trade_date($d['date']); ?></td>
-                                        <td class="text-loss">
-                                            -₹<?php echo number_format(abs($d['net']), 2); ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                            <?php else: foreach ($stats['worst_days'] as $d): ?>
+                                <tr>
+                                    <td><?php echo format_trade_date($d['date']); ?></td>
+                                    <td class="text-loss">-₹<?php echo number_format(abs($d['net']), 2); ?></td>
+                                </tr>
+                            <?php endforeach; endif; ?>
                             </tbody>
                         </table>
                     </div>
                 </div>
+
             </div>
-        </div>
+
+            <!-- ================= NSE HOLIDAYS CARD ================= -->
+            <div class="card">
+                <h3 class="card-title">NSE Market Holidays</h3>
+                <p class="text-muted mt-1">Equity trading holidays (official NSE)</p>
+
+                <table class="table-compact">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>Holiday</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($nseHolidays)): ?>
+                        <tr><td colspan="3" class="text-muted">Unable to load holidays</td></tr>
+                    <?php else: foreach ($nseHolidays as $h): ?>
+                        <tr>
+                            <td><?php echo format_trade_date($h['date']); ?></td>
+                            <td><?php echo htmlspecialchars($h['day']); ?></td>
+                            <td><?php echo htmlspecialchars($h['name']); ?></td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+
+                <div class="mt-1" style="font-size:0.85rem;">
+                    <a href="https://www.nseindia.com/resources/exchange-communication-holidays"
+                    target="_blank"
+                    class="text-muted">
+                        View on NSE website →
+                    </a>
+                </div>
+            </div>
+
+        </div>                        
     </main>
     <?php require_once __DIR__ . '/inc/footer.php'; ?>
 </div>
@@ -471,4 +541,83 @@ if ($toast) {
         // submit after confirmation
         this.submit();
     });
+</script>
+
+<script>
+let marketTimer = null;
+
+function refreshMarket() {
+    fetch('/api/market_snapshot.php')
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success || !res.market) return;
+
+            Object.keys(res.market).forEach(key => {
+                const card = document.querySelector(`.market-card[data-key="${key}"]`);
+                if (!card) return;
+
+                const m = res.market[key];
+
+                /* ---------- LAST PRICE ---------- */
+                const lastEl = card.querySelector('[data-field="last"]');
+                if (lastEl) {
+                    lastEl.textContent = formatNumber(m.last, 2);
+                }
+
+                /* ---------- CHANGE ---------- */
+                const changeEl = card.querySelector('[data-field="change"]');
+                if (changeEl && m.change !== null) {
+                    const sign = m.change > 0 ? '+' : m.change < 0 ? '−' : '';
+                    changeEl.firstChild.textContent =
+                        sign + formatNumber(Math.abs(m.change), 2) + (m.unit ?? '');
+                }
+
+                /* ---------- PERCENT ---------- */
+                const pctEl = card.querySelector('[data-field="pct"]');
+                if (pctEl && m.change_pct !== null) {
+                    const sign = m.change_pct > 0 ? '+' : m.change_pct < 0 ? '−' : '';
+                    pctEl.textContent =
+                        `(${sign}${formatNumber(Math.abs(m.change_pct), 2)}%)`;
+                }
+
+                /* ---------- CARD COLOR ---------- */
+                card.classList.remove(
+                    'market-card-up',
+                    'market-card-down',
+                    'market-card-flat'
+                );
+
+                card.classList.add(
+                    m.change > 0
+                        ? 'market-card-up'
+                        : m.change < 0
+                        ? 'market-card-down'
+                        : 'market-card-flat'
+                );
+            });
+
+            // Stop polling if market closed
+            if (!res.is_open && marketTimer) {
+                clearInterval(marketTimer);
+                marketTimer = null;
+            }
+        })
+        .catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    refreshMarket();
+    marketTimer = setInterval(refreshMarket, 15000); // 15 sec
+});
+</script>
+
+<script>
+    function formatNumber(num, decimals = 2) {
+        if (num === null || num === undefined || isNaN(num)) return '—';
+
+        return Number(num).toLocaleString('en-IN', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
 </script>

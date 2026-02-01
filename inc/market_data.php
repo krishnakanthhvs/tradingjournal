@@ -58,3 +58,33 @@ function calculate_pivots(float $high, float $low, float $close): array
         's2'    => round($pivot - ($high - $low), 2),
     ];
 }
+
+function get_crypto_snapshot(): array {
+    $url = "https://api.coingecko.com/api/v3/simple/price" .
+           "?ids=bitcoin,ethereum" .
+           "&vs_currencies=usd" .
+           "&include_24hr_change=true";
+
+    $json = @file_get_contents($url);
+    if (!$json) return [];
+
+    $data = json_decode($json, true);
+    if (!$data) return [];
+
+    return [
+        'btc' => [
+            'label'       => 'Bitcoin (BTC)',
+            'last'        => $data['bitcoin']['usd'] ?? null,
+            'change_pct'  => $data['bitcoin']['usd_24h_change'] ?? null,
+            'change'      => null,
+            'unit'        => '$'
+        ],
+        'eth' => [
+            'label'       => 'Ethereum (ETH)',
+            'last'        => $data['ethereum']['usd'] ?? null,
+            'change_pct'  => $data['ethereum']['usd_24h_change'] ?? null,
+            'change'      => null,
+            'unit'        => '$'
+        ]
+    ];
+}

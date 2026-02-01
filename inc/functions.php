@@ -888,8 +888,58 @@ function fetch_nifty_pcr_quote(): ?array
  *   'unit'       => ' pts' | '' etc.
  * ]
  */
+
+/* ==========================================================
+   CRYPTO MARKET SNAPSHOT (FREE – CoinGecko, No API Key)
+========================================================== */
+function get_crypto_snapshot(): array
+{
+    $url = 'https://api.coingecko.com/api/v3/simple/price'
+         . '?ids=bitcoin,ethereum'
+         . '&vs_currencies=usd'
+         . '&include_24hr_change=true';
+
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 5,
+            'header'  => "User-Agent: TradingJournal\r\n"
+        ]
+    ]);
+
+    $json = @file_get_contents($url, false, $context);
+    if (!$json) {
+        return [];
+    }
+
+    $data = json_decode($json, true);
+    if (!is_array($data)) {
+        return [];
+    }
+
+    return [
+        'btc' => [
+            'label'      => 'Bitcoin (BTC)',
+            'last'       => $data['bitcoin']['usd'] ?? null,
+            'change_pct' => $data['bitcoin']['usd_24h_change'] ?? null,
+            'change'     => null,
+            'unit'       => '$'
+        ],
+        'eth' => [
+            'label'      => 'Ethereum (ETH)',
+            'last'       => $data['ethereum']['usd'] ?? null,
+            'change_pct' => $data['ethereum']['usd_24h_change'] ?? null,
+            'change'     => null,
+            'unit'       => '$'
+        ]
+    ];
+}
+
 function get_market_snapshot(): array
 {
+    $out = [
+        'open' => is_market_open_ist(),
+    ];
+
     $itemsConfig = [
         'nifty' => [
             'label'  => 'Nifty 50',
@@ -909,72 +959,42 @@ function get_market_snapshot(): array
             'symbol' => '^NSEBANK',
             'unit'   => ' pts',
         ],
-
-        // India VIX via Yahoo
         'indiavix' => [
             'label'  => 'India VIX',
             'source' => 'yahoo',
             'symbol' => '^INDIAVIX',
             'unit'   => ' pts',
         ],
-
-        // USD / INR via Yahoo FX
         'usd_inr' => [
             'label'  => 'USD / INR',
             'source' => 'yahoo',
             'symbol' => 'USDINR=X',
             'unit'   => '',
         ],
-
-        // Nifty PCR via NSE option chain
-        'pcr' => [
-            'label'  => 'Nifty PCR',
-            'source' => 'nse_pcr',
-            'symbol' => null,
-            'unit'   => '',
-        ],
     ];
 
-    $out = [
-        'open' => is_market_open_ist(),
-    ];
-
+    // 🔹 Indices / FX
     foreach ($itemsConfig as $key => $cfg) {
-        $label = $cfg['label'] ?? strtoupper($key);
-        $unit  = $cfg['unit']  ?? ' pts';
+        $quote = fetch_yahoo_index_quote($cfg['symbol']);
 
-        $quote = null;
+        $out[$key] = [
+            'label'      => $cfg['label'],
+            'last'       => $quote['last'] ?? null,
+            'change'     => $quote['change'] ?? null,
+            'change_pct' => $quote['change_pct'] ?? null,
+            'unit'       => $cfg['unit'],
+        ];
+    }
 
-        switch ($cfg['source']) {
-            case 'yahoo':
-                $quote = fetch_yahoo_index_quote($cfg['symbol']);
-                break;
+    // 🔹 Crypto (CoinGecko)
+    $crypto = get_crypto_snapshot();
 
-            case 'nse_pcr':
-                $quote = fetch_nifty_pcr_quote();
-                break;
-
-            default:
-                $quote = null;
+    foreach ($crypto as $k => $c) {
+        if ($c['last'] !== null && $c['change_pct'] !== null) {
+            $c['change'] = ($c['last'] * $c['change_pct']) / 100;
         }
 
-        if ($quote === null) {
-            $out[$key] = [
-                'label'      => $label,
-                'last'       => null,
-                'change'     => null,
-                'change_pct' => null,
-                'unit'       => $unit,
-            ];
-        } else {
-            $out[$key] = [
-                'label'      => $label,
-                'last'       => $quote['last']       ?? null,
-                'change'     => $quote['change']     ?? null,
-                'change_pct' => $quote['change_pct'] ?? null,
-                'unit'       => $unit,
-            ];
-        }
+        $out[$k] = $c;
     }
 
     return $out;
@@ -1401,6 +1421,92 @@ function get_nse_equity_list(): array
     @file_put_contents($cacheFile, json_encode($out));
 
     return $out;
+}
+
+/**
+ * Fetch NSE trading holidays (Equity segment).
+ * Cached for 1 day.
+ */
+function get_nse_holidays(): array
+{
+    $cacheDir  = __DIR__ . '/cache';
+    $cacheFile = $cacheDir . '/nse_holidays.json';
+    $cacheTtl  = 86400; // 1 day
+
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0777, true);
+    }
+
+    // Use cache if valid
+    if (is_file($cacheFile) && (time() - filemtime($cacheFile) < $cacheTtl)) {
+        $cached = json_decode(@file_get_contents($cacheFile), true);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $url = 'https://www.nseindia.com/api/holiday-master?type=trading';
+
+    $headers = [
+        'User-Agent: Mozilla/5.0',
+        'Accept: application/json',
+        'Referer: https://www.nseindia.com/',
+    ];
+
+    $context = stream_context_create([
+        'http' => [
+            'method'  => 'GET',
+            'header'  => implode("\r\n", $headers),
+            'timeout' => 8,
+        ]
+    ]);
+
+    $json = @file_get_contents($url, false, $context);
+    if (!$json) {
+        return [];
+    }
+
+    $data = json_decode($json, true);
+    if (!isset($data['FO']) && !isset($data['CM'])) {
+        return [];
+    }
+
+    // Prefer CM (Equity)
+    $holidays = $data['CM'] ?? [];
+
+    $out = [];
+    foreach ($holidays as $h) {
+        $out[] = [
+            'date'  => $h['tradingDate'] ?? '',
+            'day'   => $h['weekDay'] ?? '',
+            'name'  => $h['description'] ?? '',
+        ];
+    }
+
+    @file_put_contents($cacheFile, json_encode($out));
+    return $out;
+}
+
+function get_nifty_day_ohlc($date) {
+    $cacheKey = 'nifty_ohlc_' . $date;
+    $cached = cache_get($cacheKey, 86400);
+    if ($cached) return $cached;
+
+    $url = "https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=1d&range=7d";
+    $json = json_decode(file_get_contents($url), true);
+
+    foreach ($json['chart']['result'][0]['timestamp'] as $i => $ts) {
+        if (date('Y-m-d', $ts) === $date) {
+            $q = $json['chart']['result'][0]['indicators']['quote'][0];
+            $data = [
+                'open'  => $q['open'][$i],
+                'close' => $q['close'][$i]
+            ];
+            cache_set($cacheKey, $data);
+            return $data;
+        }
+    }
+    return null;
 }
 
 ?>

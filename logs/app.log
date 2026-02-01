@@ -1,0 +1,18 @@
+[07-Dec-2025 18:20:07 UTC] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'u788563593_mdd_user'@'localhost' (using password: YES) in /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php:5
+Stack trace:
+#0 /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php(5): mysqli->__construct()
+#1 /home/u788563593/domains/mydailydiary.space/public_html/dashboard.php(2): require_once('/home/u78856359...')
+#2 {main}
+  thrown in /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php on line 5
+[07-Dec-2025 18:21:11 UTC] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'u788563593_mdd_user'@'localhost' (using password: YES) in /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php:5
+Stack trace:
+#0 /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php(5): mysqli->__construct()
+#1 /home/u788563593/domains/mydailydiary.space/public_html/dashboard.php(2): require_once('/home/u78856359...')
+#2 {main}
+  thrown in /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php on line 5
+[07-Dec-2025 18:21:13 UTC] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'u788563593_mdd_user'@'localhost' (using password: YES) in /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php:5
+Stack trace:
+#0 /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php(5): mysqli->__construct()
+#1 /home/u788563593/domains/mydailydiary.space/public_html/dashboard.php(2): require_once('/home/u78856359...')
+#2 {main}
+  thrown in /home/u788563593/domains/mydailydiary.space/public_html/inc/db.php on line 5
