@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Journal Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
+
+  <div id="authSection" class="flex justify-center items-center h-screen">
+    <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96">
+      <h2 id="authTitle" class="text-2xl font-bold mb-6 text-center text-indigo-400">Trading Journal Login</h2>
+      <form id="authForm" class="space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400">Email</label>
+          <input type="email" id="authEmail" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-white mt-1">
+        </div>
+        <div id="passwordContainer">
+          <label class="block text-sm text-gray-400">Password</label>
+          <input type="password" id="authPassword" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-white mt-1">
+        </div>
+        <button type="submit" id="authSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded text-white font-semibold">Login</button>
+      </form>
+      <div class="mt-4 text-xs text-gray-400 flex justify-between">
+        <button id="toggleAuthMode" class="hover:underline">Need an account? Register</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="appLayout" class="hidden flex min-h-screen">
+
+    <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col justify-between p-4 flex-shrink-0">
+      <div>
+        <div class="flex items-center space-x-2 mb-8 px-2">
+          <span class="text-2xl">📈</span>
+          <h1 class="text-lg font-bold text-indigo-400 tracking-wide">TradeJournal</h1>
+        </div>
+
+        <nav class="space-y-2">
+          <button id="navDashboard" onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold bg-indigo-600 text-white transition">
+            <span>📊</span>
+            <span>Dashboard</span>
+          </button>
+          <button id="navTrades" onclick="switchTab('trades')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold text-gray-400 hover:bg-gray-700 hover:text-white transition">
+            <span>📖</span>
+            <span>Trades History</span>
+          </button>
+          <button id="navSettings" onclick="switchTab('settings')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold text-gray-400 hover:bg-gray-700 hover:text-white transition">
+            <span>⚙️</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="pt-4 border-t border-gray-700">
+        <button id="logoutBtn" class="w-full flex items-center justify-center space-x-2 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white py-2 rounded-lg text-sm font-semibold transition">
+          <span>🚪</span>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="flex-1 p-6 overflow-y-auto space-y-6">
+
+      <header class="flex justify-between items-center bg-gray-800 p-4 rounded-lg shadow">
+        <h2 id="pageTitle" class="text-xl font-bold text-gray-200">Dashboard</h2>
+        <div class="flex items-center space-x-4">
+          <div>
+            <label class="text-xs text-gray-400 mr-2">Select Month:</label>
+            <input type="month" id="monthPicker" class="bg-gray-700 text-white p-2 rounded border border-gray-600 text-sm">
+          </div>
+          <button id="openTradeModalBtn" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-semibold text-white transition">+ Add Trade</button>
+        </div>
+      </header>
+
+      <div id="viewDashboard" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <div class="flex justify-between items-center">
+              <p class="text-sm text-gray-400">Capital of the Month</p>
+              <span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">🔒 Fixed</span>
+            </div>
+            <h3 id="cardCapital" class="text-2xl font-bold mt-1">₹0.00</h3>
+          </div>
+          <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <p class="text-sm text-gray-400">P & L of the Month</p>
+            <h3 id="cardPnL" class="text-2xl font-bold mt-1">₹0.00</h3>
+            <p id="cardPnLPercent" class="text-xs text-gray-400 mt-1">0%</p>
+          </div>
+          <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <p class="text-sm text-gray-400">Today's P & L</p>
+            <h3 id="cardTodayPnL" class="text-2xl font-bold mt-1">₹0.00</h3>
+          </div>
+          <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <p class="text-sm text-gray-400">Winning Streak / Best Strategy</p>
+            <h3 id="cardStreak" class="text-xl font-bold mt-1">0 Trades</h3>
+            <p id="cardStrategy" class="text-xs text-indigo-400 mt-1">Best Strategy: N/A</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-green-500 shadow">
+            <p class="text-sm text-gray-400">Best Trade of the Month</p>
+            <div id="bestTradeBox" class="mt-2 text-sm">No trades logged</div>
+          </div>
+          <div class="bg-gray-800 p-4 rounded-lg border-l-4 border-red-500 shadow">
+            <p class="text-sm text-gray-400">Worst Trade of the Month</p>
+            <div id="worstTradeBox" class="mt-2 text-sm">No trades logged</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+            <h3 class="text-sm font-semibold mb-4 text-gray-300">Daily P&L Graph (Selected Month)</h3>
+            <canvas id="dailyChart" class="w-full h-64"></canvas>
+          </div>
+          <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+            <h3 class="text-sm font-semibold mb-4 text-gray-300">Monthly P&L Graph (Year Overview)</h3>
+            <canvas id="monthlyChart" class="w-full h-64"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div id="viewTrades" class="hidden space-y-4">
+        <div class="bg-gray-800 p-4 rounded-lg shadow border border-gray-700 space-y-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-md font-bold text-gray-200">All Logged Trades</h3>
+            <span id="tradeCountBadge" class="text-xs bg-indigo-900 text-indigo-300 px-2.5 py-1 rounded-full font-semibold">0 Trades</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-300">
+              <thead class="bg-gray-700 text-gray-400 uppercase text-xs">
+                <tr>
+                  <th class="p-3">Date</th>
+                  <th class="p-3">Symbol</th>
+                  <th class="p-3">Type</th>
+                  <th class="p-3">Strategy</th>
+                  <th class="p-3">Entry (₹)</th>
+                  <th class="p-3">Exit (₹)</th>
+                  <th class="p-3">Lots x Size</th>
+                  <th class="p-3">P&L (₹)</th>
+                  <th class="p-3">P&L %</th>
+                  <th class="p-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="tradesTableBody" class="divide-y divide-gray-700">
+                <tr><td colspan="10" class="p-4 text-center text-gray-500">No trades recorded for this month.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="viewSettings" class="hidden space-y-6">
+        <div class="bg-gray-800 p-6 rounded-lg border border-gray-700 max-w-2xl space-y-4">
+          <h3 class="text-lg font-bold text-indigo-400">User Account & Settings</h3>
+          <p class="text-xs text-gray-400">Manage trading preferences and system configurations.</p>
+          <hr class="border-gray-700">
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs text-gray-400">Account Status</label>
+              <input type="text" value="Active (Standard Plan)" disabled class="w-full p-2 bg-gray-700/50 text-gray-400 rounded border border-gray-600 text-sm mt-1 cursor-not-allowed">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-400">Default Currency</label>
+              <input type="text" value="INR (₹)" disabled class="w-full p-2 bg-gray-700/50 text-gray-400 rounded border border-gray-600 text-sm mt-1 cursor-not-allowed">
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div id="capitalModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50">
+    <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md border border-indigo-500 shadow-2xl">
+      <h3 class="text-lg font-bold text-indigo-400 mb-2">Set Starting Capital</h3>
+      <p class="text-xs text-gray-400 mb-4">Please enter the starting capital in Rupees (₹) for <span id="capitalModalMonth" class="text-white font-bold"></span>. <strong class="text-amber-400">Once saved, this cannot be edited.</strong></p>
+      <form id="capitalForm" class="space-y-4">
+        <div>
+          <label class="block text-xs text-gray-400 mb-1">Starting Capital (₹)</label>
+          <input type="number" step="0.01" id="capitalInput" placeholder="e.g. 100000" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-white font-semibold">
+        </div>
+        <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold text-white">Confirm & Lock Capital</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="tradeModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-40">
+    <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+      <h3 class="text-lg font-bold mb-4 text-indigo-400">Add New Trade</h3>
+      <form id="tradeForm" class="space-y-3">
+        <div>
+          <label class="block text-xs text-gray-400">Symbol / Asset</label>
+          <input type="text" id="tSymbol" placeholder="e.g., NIFTY 50" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-gray-400">Instrument Type</label>
+            <select id="tType" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+              <option value="Call">Call</option>
+              <option value="Put">Put</option>
+              <option value="Equity">Equity</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400">Expiry Date</label>
+            <input type="date" id="tExpiry" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-gray-400">Entry Price (₹)</label>
+            <input type="number" step="0.01" id="tEntry" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400">Exit Price (₹)</label>
+            <input type="number" step="0.01" id="tExit" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-gray-400">Number of Lots</label>
+            <input type="number" id="tQty" placeholder="e.g. 2" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400">Lot Size (Qty / Lot)</label>
+            <input type="number" id="tLotSize" placeholder="e.g. 25 for NIFTY" value="1" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+        </div>
+        
+        <div class="bg-gray-900 p-3 rounded border border-gray-700 flex justify-between items-center text-xs">
+          <div>Estimated P&L: <span id="previewPnL" class="font-bold text-gray-300">₹0.00</span></div>
+          <div>Return %: <span id="previewPnLPercent" class="font-bold text-gray-300">0.00%</span></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs text-gray-400">Strategy</label>
+            <select id="tStrategy" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1"></select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400">Trade Date</label>
+            <input type="date" id="tDate" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 mt-4">
+          <button type="button" id="closeModalBtn" class="px-4 py-2 bg-gray-600 rounded text-sm">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold">Save Trade</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
