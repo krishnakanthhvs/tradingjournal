@@ -107,26 +107,46 @@ app.get('/api/strategies', requireAuth, async (req, res) => {
 });
 
 // Add Trade with Lot Size & PnL calculation
-app.post('/api/trades', requireAuth, async (req, res) => {
-  const { symbol, instrument_type, expiry_date, entry_price, exit_price, quantity, lot_size, strategy_id, trade_date } = req.body;
-  
-  const entry = parseFloat(entry_price);
-  const exit = parseFloat(exit_price);
-  const qty = parseInt(quantity);
-  const lotSizeVal = parseInt(lot_size) || 1;
-
-  // P&L = (Exit - Entry) * Lots * Lot Size
-  const pnl = (exit - entry) * qty * lotSizeVal;
-
+app.post('/api/trades', async (req, res) => {
   try {
-    await pool.query(
-      `INSERT INTO trades (user_id, symbol, instrument_type, expiry_date, entry_price, exit_price, quantity, lot_size, pnl, strategy_id, trade_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [req.session.userId, symbol, instrument_type, expiry_date || null, entry, exit, qty, lotSizeVal, pnl, strategy_id || null, trade_date]
-    );
-    res.json({ success: true });
+    const { 
+      symbol, 
+      instrument_type, 
+      expiry_date, 
+      entry_price, 
+      exit_price, 
+      quantity, 
+      lot_size, 
+      strategy_id, 
+      trade_date, 
+      notes // <--- 1. Extract notes from req.body
+    } = req.body;
+
+    const userId = req.session.userId; 
+
+    const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
+
+    const query = `
+      INSERT INTO trades (
+        user_id, symbol, instrument_type, expiry_date, 
+        entry_price, exit_price, quantity, lot_size, 
+        pnl, strategy_id, trade_date, notes
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *
+    `;
+
+    const values = [
+      userId, symbol, instrument_type, expiry_date || null, 
+      entry_price, exit_price, quantity, lot_size, 
+      pnl, strategy_id, trade_date, notes || null // <--- 2. Pass notes here
+    ];
+
+    const result = await pool.query(query, values);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create trade' });
   }
 });
 
