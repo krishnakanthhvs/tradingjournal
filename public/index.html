@@ -246,6 +246,19 @@
             <input type="date" id="tDate" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
           </div>
         </div>
+        
+        <div class="col-span-2">
+        <label for="tNotes" class="block text-sm font-medium text-gray-300 mb-1">
+            Notes / Strategy Remarks
+        </label>
+        <textarea 
+            id="tNotes" 
+            rows="3" 
+            placeholder="Enter trade reasons, entry/exit notes..."
+            class="w-full bg-gray-800 border border-gray-700 rounded-lg p-2.5 text-white placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none transition"
+        ></textarea>
+        </div>
+
         <div class="flex justify-end space-x-2 mt-4">
           <button type="button" id="closeModalBtn" class="px-4 py-2 bg-gray-600 rounded text-sm">Cancel</button>
           <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold">Save Trade</button>
