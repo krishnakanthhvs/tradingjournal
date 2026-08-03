@@ -1,6 +1,7 @@
 let currentAuthMode = 'login';
 let dailyChartInstance = null;
 let monthlyChartInstance = null;
+let currentMonthTrades = []; // Holds active month's trades in memory
 
 document.addEventListener('DOMContentLoaded', () => {
   const monthPicker = document.getElementById('monthPicker');
@@ -173,40 +174,115 @@ async function fetchDashboardData() {
   renderTradesTable(data.monthTrades);
 }
 
+// RENDER TRADES TABLE WITH VIEW & DELETE ICONS
 function renderTradesTable(trades) {
+  currentMonthTrades = trades || [];
   const tbody = document.getElementById('tradesTableBody');
-  document.getElementById('tradeCountBadge').innerText = `${trades.length} Trades`;
+  document.getElementById('tradeCountBadge').innerText = `${currentMonthTrades.length} Trades`;
 
-  if (!trades || trades.length === 0) {
+  if (!currentMonthTrades || currentMonthTrades.length === 0) {
     tbody.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-gray-500">No trades recorded for this month.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = trades.map(t => {
+  tbody.innerHTML = currentMonthTrades.map(t => {
     const entry = parseFloat(t.entry_price);
     const exit = parseFloat(t.exit_price);
     const pnl = parseFloat(t.pnl);
     const pnlPercent = ((exit - entry) / entry) * 100;
-    const dateStr = new Date(t.trade_date).toISOString().slice(0, 10);
     const lotSize = t.lot_size || 1;
 
+    // --- DATE FORMATTING (01 Aug 2026) ---
+    const dateObj = new Date(t.trade_date);
+    const formattedDate = dateObj.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+
     return `
-      <tr class="hover:bg-gray-750 transition">
-        <td class="p-3 text-xs text-gray-400">${dateStr}</td>
+      <tr class="hover:bg-gray-750 transition border-b border-gray-700/50">
+        <td class="p-3 text-xs text-gray-400 font-medium">${formattedDate}</td>
         <td class="p-3 font-semibold text-white">${t.symbol}</td>
-        <td class="p-3"><span class="px-2 py-0.5 text-xs rounded ${t.instrument_type === 'Call' ? 'bg-green-900 text-green-300' : t.instrument_type === 'Put' ? 'bg-red-900 text-red-300' : 'bg-blue-900 text-blue-300'}">${t.instrument_type}</span></td>
+        <td class="p-3">
+          <span class="px-2 py-0.5 text-xs rounded ${t.instrument_type === 'Call' ? 'bg-green-900 text-green-300' : t.instrument_type === 'Put' ? 'bg-red-900 text-red-300' : 'bg-blue-900 text-blue-300'}">
+            ${t.instrument_type}
+          </span>
+        </td>
         <td class="p-3 text-xs text-gray-400">${t.strategy_name || 'N/A'}</td>
         <td class="p-3">${formatRupees(entry)}</td>
         <td class="p-3">${formatRupees(exit)}</td>
         <td class="p-3 text-xs text-gray-300">${t.quantity} L (${lotSize}/L)</td>
         <td class="p-3 font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}">${formatRupees(pnl)}</td>
         <td class="p-3 font-bold ${pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}">${pnlPercent.toFixed(2)}%</td>
-        <td class="p-3 text-right">
-          <button onclick="deleteTrade(${t.id})" class="text-red-400 hover:text-red-300 text-xs font-semibold">Delete</button>
+        <td class="p-3 text-center space-x-2">
+          <button onclick="viewTradeDetails(${t.id})" title="View Details" class="p-1.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded transition">
+            <i class="fa-solid fa-eye text-xs"></i>
+          </button>
+          <button onclick="deleteTrade(${t.id})" title="Delete Trade" class="p-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded transition">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
         </td>
       </tr>
     `;
   }).join('');
+}
+
+// VIEW TRADE DETAILS MODAL HANDLER
+function viewTradeDetails(id) {
+  const trade = currentMonthTrades.find(t => t.id === id);
+  if (!trade) return;
+
+  const entry = parseFloat(trade.entry_price);
+  const exit = parseFloat(trade.exit_price);
+  const pnl = parseFloat(trade.pnl);
+  const pnlPercent = ((exit - entry) / entry) * 100;
+  const lotSize = trade.lot_size || 1;
+
+  // --- DATE FORMATTING (e.g., 01 Aug 2026) ---
+  const dateObj = new Date(trade.trade_date);
+  const formattedDate = dateObj.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC' // Prevents local timezone conversion from shifting the day
+  });
+
+  document.getElementById('viewSymbol').innerText = trade.symbol;
+  document.getElementById('viewTradeDate').innerText = formattedDate; // Updated here
+  
+  const badge = document.getElementById('viewTypeBadge');
+  badge.innerText = trade.instrument_type;
+  badge.className = `px-3 py-1 text-xs rounded-full font-semibold ${trade.instrument_type === 'Call' ? 'bg-green-900 text-green-300' : trade.instrument_type === 'Put' ? 'bg-red-900 text-red-300' : 'bg-blue-900 text-blue-300'}`;
+
+  document.getElementById('viewEntry').innerText = formatRupees(entry);
+  document.getElementById('viewExit').innerText = formatRupees(exit);
+  document.getElementById('viewQty').innerText = `${trade.quantity} Lots (${lotSize} Qty/Lot)`;
+  document.getElementById('viewStrategy').innerText = trade.strategy_name || 'N/A';
+
+  const pnlEl = document.getElementById('viewPnL');
+  pnlEl.innerText = formatRupees(pnl);
+  pnlEl.className = `text-xl font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+
+  const pnlPercentEl = document.getElementById('viewPnLPercent');
+  pnlPercentEl.innerText = `${pnlPercent.toFixed(2)}%`;
+  pnlPercentEl.className = `text-lg font-bold ${pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}`;
+
+  // Set Notes / Placeholder Style
+  const notesEl = document.getElementById('viewNotes');
+  if (trade.notes && trade.notes.trim() !== '') {
+    notesEl.innerText = trade.notes;
+    notesEl.className = "bg-gray-900/80 p-3.5 rounded-lg border border-gray-700 text-sm text-gray-300 min-h-[80px] whitespace-pre-wrap";
+  } else {
+    notesEl.innerText = 'No notes entered for this trade.';
+    notesEl.className = "bg-gray-900/80 p-3.5 rounded-lg border border-gray-700 text-sm text-gray-500 italic min-h-[80px] whitespace-pre-wrap";
+  }
+    
+  document.getElementById('viewTradeModal').classList.remove('hidden');
+}
+
+function closeViewTradeModal() {
+  document.getElementById('viewTradeModal').classList.add('hidden');
 }
 
 async function deleteTrade(id) {
@@ -303,6 +379,7 @@ async function loadStrategies() {
 
 function openModal() {
   document.getElementById('tDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('tNotes').value = ''; // Reset notes field
   document.getElementById('tradeModal').classList.remove('hidden');
 }
 
@@ -310,6 +387,7 @@ function closeModal() {
   document.getElementById('tradeModal').classList.add('hidden');
 }
 
+// INCLUDES NOTES IN THE PAYLOAD
 async function handleAddTrade(e) {
   e.preventDefault();
   const payload = {
@@ -321,7 +399,8 @@ async function handleAddTrade(e) {
     quantity: document.getElementById('tQty').value,
     lot_size: document.getElementById('tLotSize').value,
     strategy_id: document.getElementById('tStrategy').value,
-    trade_date: document.getElementById('tDate').value
+    trade_date: document.getElementById('tDate').value,
+    notes: document.getElementById('tNotes').value // <--- ADDED NOTES HERE
   };
 
   const res = await fetch('/api/trades', {
