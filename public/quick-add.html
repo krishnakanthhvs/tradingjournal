@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Add Trade - Trading Journal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="bg-gray-900 p-6 rounded-2xl w-full max-w-lg border border-gray-800 shadow-2xl">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-gray-800 pb-4">
+      <div>
+        <h3 class="text-xl font-bold text-indigo-400">Quick Trade Entry</h3>
+        <p class="text-xs text-gray-400">Log a trade directly into your journal</p>
+      </div>
+
+      <div class="bg-gray-950 px-3 py-2 rounded-xl border border-gray-800 flex items-center gap-3 text-xs">
+        <div>Estimated P&L: <span id="previewPnL" class="font-bold font-mono text-gray-300">₹0.00</span></div>
+      </div>
+    </div>
+
+    <div id="alertBox" class="hidden mb-4 p-3 rounded-lg text-xs font-semibold"></div>
+
+    <form id="externalTradeForm" class="space-y-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-400 mb-1">User Email ID *</label>
+        <div class="relative">
+          <input type="email" id="userEmail" required placeholder="your.email@example.com" 
+            class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-gray-400 mb-1">Symbol / Asset *</label>
+        <input type="text" id="tSymbol" placeholder="e.g., NIFTY 50 / BANKNIFTY" required 
+          class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Instrument Type</label>
+          <select id="tType" class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+            <option value="Call">Call</option>
+            <option value="Put">Put</option>
+            <option value="Equity">Equity</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Expiry Date</label>
+          <input type="date" id="tExpiry" class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Entry Price (₹) *</label>
+          <input type="number" step="0.01" id="tEntry" required placeholder="0.00" 
+            class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Exit Price (₹) *</label>
+          <input type="number" step="0.01" id="tExit" required placeholder="0.00" 
+            class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Number of Lots *</label>
+          <input type="number" id="tQty" placeholder="e.g. 2" required 
+            class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Lot Size (Qty / Lot) *</label>
+          <input type="number" id="tLotSize" placeholder="e.g. 25" value="1" required 
+            class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Strategy</label>
+          <select id="tStrategy" class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+            <option value="">Enter email to load strategies</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1">Trade Date *</label>
+          <input type="date" id="tDate" required class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+        </div>
+      </div>
+
+      <div>
+        <label for="tNotes" class="block text-xs font-medium text-gray-400 mb-1">Notes / Strategy Remarks</label>
+        <textarea id="tNotes" rows="2" placeholder="Enter trade rationale, execution notes..." 
+          class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition"></textarea>
+      </div>
+
+      <div class="pt-2">
+        <button type="submit" id="submitBtn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white rounded-xl transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-plus"></i>
+          <span>Submit Trade</span>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Set default date to today
+    document.getElementById('tDate').value = new Date().toISOString().slice(0, 10);
+
+    // Live PnL Preview Calculation
+    const calcPnL = () => {
+      const entry = parseFloat(document.getElementById('tEntry').value) || 0;
+      const exit = parseFloat(document.getElementById('tExit').value) || 0;
+      const qty = parseInt(document.getElementById('tQty').value) || 0;
+      const lotSize = parseInt(document.getElementById('tLotSize').value) || 1;
+
+      const pnl = (exit - entry) * qty * lotSize;
+      const pnlEl = document.getElementById('previewPnL');
+
+      if (pnl > 0) {
+        pnlEl.innerText = `+₹${pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        pnlEl.className = 'font-bold font-mono text-emerald-400';
+      } else if (pnl < 0) {
+        pnlEl.innerText = `-₹${Math.abs(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        pnlEl.className = 'font-bold font-mono text-rose-400';
+      } else {
+        pnlEl.innerText = '₹0.00';
+        pnlEl.className = 'font-bold font-mono text-gray-300';
+      }
+    };
+
+    ['tEntry', 'tExit', 'tQty', 'tLotSize'].forEach(id => {
+      document.getElementById(id).addEventListener('input', calcPnL);
+    });
+
+    // Fetch Strategies dynamically when email is entered
+    const fetchStrategies = async (email) => {
+      try {
+        const res = await fetch(`/api/external/strategies?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+        const selectEl = document.getElementById('tStrategy');
+
+        if (Array.isArray(data) && data.length > 0) {
+          selectEl.innerHTML = data.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        } else {
+          selectEl.innerHTML = `<option value="">No strategies found</option>`;
+        }
+      } catch (err) {
+        console.error('Failed to load strategies:', err);
+      }
+    };
+
+    document.getElementById('userEmail').addEventListener('blur', (e) => {
+      if (e.target.value.trim()) fetchStrategies(e.target.value.trim());
+    });
+
+    // Form Submission
+    document.getElementById('externalTradeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alertBox = document.getElementById('alertBox');
+      const submitBtn = document.getElementById('submitBtn');
+
+      const payload = {
+        email: document.getElementById('userEmail').value.trim(),
+        symbol: document.getElementById('tSymbol').value.trim(),
+        instrument_type: document.getElementById('tType').value,
+        expiry_date: document.getElementById('tExpiry').value || null,
+        entry_price: parseFloat(document.getElementById('tEntry').value),
+        exit_price: parseFloat(document.getElementById('tExit').value),
+        quantity: parseInt(document.getElementById('tQty').value),
+        lot_size: parseInt(document.getElementById('tLotSize').value) || 1,
+        strategy_id: document.getElementById('tStrategy').value || null,
+        trade_date: document.getElementById('tDate').value,
+        notes: document.getElementById('tNotes').value.trim() || null
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Submitting...';
+
+      try {
+        const res = await fetch('/api/external/trades', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alertBox.className = 'mb-4 p-3 rounded-lg text-xs font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800';
+          alertBox.innerText = '✓ Trade logged successfully!';
+          alertBox.classList.remove('hidden');
+
+          // Reset form fields except Email
+          const emailVal = document.getElementById('userEmail').value;
+          document.getElementById('externalTradeForm').reset();
+          document.getElementById('userEmail').value = emailVal;
+          document.getElementById('tDate').value = new Date().toISOString().slice(0, 10);
+          calcPnL();
+        } else {
+          alertBox.className = 'mb-4 p-3 rounded-lg text-xs font-semibold bg-rose-950 text-rose-300 border border-rose-800';
+          alertBox.innerText = `✕ Error: ${data.error || 'Failed to submit trade'}`;
+          alertBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        alertBox.className = 'mb-4 p-3 rounded-lg text-xs font-semibold bg-rose-950 text-rose-300 border border-rose-800';
+        alertBox.innerText = '✕ Server connection error.';
+        alertBox.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span>Submit Trade</span>`;
+      }
+    });
+  </script>
+</body>
+</html>

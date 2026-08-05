@@ -306,6 +306,97 @@ app.delete('/api/strategies/:id', requireAuth, async (req, res) => {
   }
 });
 
+// --- EXTERNAL PUBLIC TRADE ROUTES ---
+
+// 1. Fetch Strategies by User Email (Public)
+app.get('/api/external/strategies', async (req, res) => {
+  const { email } = req.query;
+
+  try {
+    let query = 'SELECT id, name FROM strategies WHERE user_id IS NULL';
+    let params = [];
+
+    if (email) {
+      const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+      if (userRes.rows.length > 0) {
+        query = 'SELECT id, name FROM strategies WHERE user_id = $1 OR user_id IS NULL';
+        params = [userRes.rows[0].id];
+      }
+    }
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching strategies:', err);
+    res.status(500).json({ error: 'Failed to fetch strategies' });
+  }
+});
+
+// 2. Add Trade using Email (Public)
+app.post('/api/external/trades', async (req, res) => {
+  try {
+    const {
+      email,
+      symbol,
+      instrument_type,
+      expiry_date,
+      entry_price,
+      exit_price,
+      quantity,
+      lot_size,
+      strategy_id,
+      trade_date,
+      notes
+    } = req.body;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'User Email ID is required' });
+    }
+
+    // Resolve user_id from email
+    const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'No user account found with this email address' });
+    }
+
+    const userId = userRes.rows[0].id;
+
+    // Calculate PnL
+    const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
+
+    const query = `
+      INSERT INTO trades (
+        user_id, symbol, instrument_type, expiry_date, 
+        entry_price, exit_price, quantity, lot_size, 
+        pnl, strategy_id, trade_date, notes
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *
+    `;
+
+    const values = [
+      userId,
+      symbol,
+      instrument_type,
+      expiry_date || null,
+      entry_price,
+      exit_price,
+      quantity,
+      lot_size,
+      pnl,
+      strategy_id || null,
+      trade_date,
+      notes || null
+    ];
+
+    const result = await pool.query(query, values);
+    res.status(201).json({ success: true, trade: result.rows[0] });
+  } catch (err) {
+    console.error('External Trade Creation Error:', err);
+    res.status(500).json({ error: 'Failed to log trade via external form' });
+  }
+});
+
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: `API route not found: ${req.originalUrl}` });
 });
