@@ -531,24 +531,21 @@ function renderMonthlyChart(yearlyData) {
 }
 
 // --- LOAD & DISPLAY STRATEGIES IN SETTINGS AND DROPDOWN ---
+// --- LOAD STRATEGIES ---
 async function loadStrategies() {
   try {
     const res = await fetch('/api/strategies');
     const strategies = await res.json();
 
-    // 1. Populate the Add Trade Modal Dropdown
+    // 1. Populate Modal Dropdown
     const selectEl = document.getElementById('tStrategy');
     if (selectEl) {
-      if (strategies.length === 0) {
-        selectEl.innerHTML = `<option value="">No strategies available (Add in Settings)</option>`;
-      } else {
-        selectEl.innerHTML = strategies.map(s => 
-          `<option value="${s.id}">${s.name}</option>`
-        ).join('');
-      }
+      selectEl.innerHTML = strategies.length === 0
+        ? `<option value="">No strategies available (Add in Settings)</option>`
+        : strategies.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     }
 
-    // 2. Populate Settings Table & Badge Count (if present)
+    // 2. Populate Settings Table
     const tbody = document.getElementById('strategiesTableBody');
     const badge = document.getElementById('strategyCountBadge');
 
@@ -558,12 +555,13 @@ async function loadStrategies() {
 
     if (tbody) {
       if (strategies.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-500">No strategies added yet.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No strategies added yet.</td></tr>`;
       } else {
         tbody.innerHTML = strategies.map((s, idx) => `
           <tr class="hover:bg-gray-800/40 transition">
             <td class="p-3 font-mono text-gray-500">${idx + 1}</td>
-            <td class="p-3 font-medium text-gray-200">${s.name}</td>
+            <td class="p-3 font-bold text-indigo-400">${s.name}</td>
+            <td class="p-3 text-gray-400 text-xs whitespace-pre-wrap">${s.description || '<span class="text-gray-600 italic">No explanation provided</span>'}</td>
             <td class="p-3 text-right">
               <button onclick="deleteStrategy(${s.id})" title="Delete Strategy" class="p-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white rounded-lg transition">
                 <i class="fa-solid fa-trash-can text-xs"></i>
@@ -578,24 +576,63 @@ async function loadStrategies() {
   }
 }
 
-// --- ADD STRATEGY FROM SETTINGS ---
+// --- ADD STRATEGY WITH DESCRIPTION ---
 async function handleAddStrategy(e) {
   e.preventDefault();
-  const inputEl = document.getElementById('newStrategySettingsName');
-  const strategyName = inputEl?.value.trim();
+  const nameInput = document.getElementById('newStrategySettingsName');
+  const descInput = document.getElementById('newStrategySettingsDesc');
 
-  if (!strategyName) return;
+  const name = nameInput?.value.trim();
+  const description = descInput?.value.trim();
+
+  if (!name) return;
 
   try {
     const res = await fetch('/api/strategies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: strategyName })
+      body: JSON.stringify({ name, description })
     });
 
     if (res.ok) {
-      inputEl.value = '';
-      await loadStrategies(); // Refresh dropdown and settings table
+      nameInput.value = '';
+      if (descInput) descInput.value = '';
+      await loadStrategies();
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Failed to add strategy.');
+    }
+  } catch (error) {
+    console.error('Error adding strategy:', error);
+    alert('An error occurred while saving the strategy.');
+  }
+}
+
+// --- ADD STRATEGY FROM SETTINGS ---
+async function handleAddStrategy(e) {
+  e.preventDefault();
+  const nameInput = document.getElementById('newStrategySettingsName');
+  const descInput = document.getElementById('newStrategySettingsDesc');
+
+  const name = nameInput?.value.trim();
+  const description = descInput?.value.trim(); // Reads value from textarea
+
+  if (!name) return;
+
+  try {
+    const res = await fetch('/api/strategies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        name: name, 
+        description: description || null // Ensures text is passed
+      })
+    });
+
+    if (res.ok) {
+      nameInput.value = '';
+      if (descInput) descInput.value = '';
+      await loadStrategies();
     } else {
       const err = await res.json();
       alert(err.error || 'Failed to add strategy.');

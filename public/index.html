@@ -202,13 +202,25 @@
             </span>
           </div>
 
-          <form id="addStrategySettingsForm" onsubmit="handleAddStrategy(event)" class="flex gap-3">
-            <input type="text" id="newStrategySettingsName" required placeholder="Enter strategy name (e.g. Order Block, Breakout/Retest)" 
-              class="flex-1 p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">
-            <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white rounded-xl transition flex items-center space-x-2">
-              <i class="fa-solid fa-plus"></i>
-              <span>Add Strategy</span>
-            </button>
+          <form id="addStrategySettingsForm" onsubmit="handleAddStrategy(event)" class="space-y-3 bg-gray-950/40 p-4 rounded-xl border border-gray-800">
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1">Strategy Name</label>
+              <input type="text" id="newStrategySettingsName" required placeholder="e.g. Order Block / Liquidity Sweep" 
+                class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">
+            </div>
+            
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1">Strategy Explanation / Rules (Optional)</label>
+              <textarea id="newStrategySettingsDesc" rows="2" placeholder="e.g. Look for 15m order block confluence with 1D trend..." 
+                class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition"></textarea>
+            </div>
+
+            <div class="flex justify-end">
+              <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white rounded-xl transition flex items-center space-x-2">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Strategy</span>
+              </button>
+            </div>
           </form>
 
           <div class="overflow-x-auto border border-gray-800 rounded-xl">

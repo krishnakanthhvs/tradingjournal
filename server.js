@@ -258,7 +258,7 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
 });
 
 app.post('/api/strategies', requireAuth, async (req, res) => {
-  const { name } = req.body;
+  const { name, description } = req.body;
   const userId = req.session.userId;
 
   if (!name || name.trim() === '') {
@@ -267,13 +267,15 @@ app.post('/api/strategies', requireAuth, async (req, res) => {
 
   try {
     const query = `
-      INSERT INTO strategies (user_id, name) 
-      VALUES ($1, $2) 
-      RETURNING id, name, user_id
+      INSERT INTO strategies (user_id, name, description) 
+      VALUES ($1, $2, $3) 
+      RETURNING id, name, description, user_id
     `;
     
-    // Fixed: Changed 'db.query' to 'pool.query'
-    const result = await pool.query(query, [userId, name.trim()]);
+    // Fallback to null if empty or undefined
+    const descValue = (description && description.trim() !== '') ? description.trim() : null;
+
+    const result = await pool.query(query, [userId, name.trim(), descValue]);
     
     res.status(201).json(result.rows[0]);
   } catch (error) {
