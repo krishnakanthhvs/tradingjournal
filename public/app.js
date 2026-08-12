@@ -679,30 +679,38 @@ function closeModal() {
 
 async function handleAddTrade(e) {
   e.preventDefault();
-  const payload = {
-    symbol: document.getElementById('tSymbol').value,
+
+  const tradeData = {
+    symbol: document.getElementById('tSymbol').value.trim(),
     instrument_type: document.getElementById('tType').value,
-    expiry_date: document.getElementById('tExpiry').value,
-    entry_price: document.getElementById('tEntry').value,
-    exit_price: document.getElementById('tExit').value,
-    quantity: document.getElementById('tQty').value,
-    lot_size: document.getElementById('tLotSize').value,
-    strategy_id: document.getElementById('tStrategy').value,
+    expiry_date: document.getElementById('tExpiry').value || null,
+    entry_price: parseFloat(document.getElementById('tEntry').value),
+    exit_price: parseFloat(document.getElementById('tExit').value),
+    quantity: parseInt(document.getElementById('tQty').value),
+    lot_size: parseInt(document.getElementById('tLotSize').value) || 1,
+    strategy_id: document.getElementById('tStrategy').value || null,
     trade_date: document.getElementById('tDate').value,
-    notes: document.getElementById('tNotes').value
+    entry_time: document.getElementById('tEntryTime')?.value || null,
+    exit_time: document.getElementById('tExitTime')?.value || null,
+    notes: document.getElementById('tNotes')?.value.trim() || null
   };
 
-  const res = await fetch('/api/trades', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  try {
+    const res = await fetch('/api/trades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tradeData)
+    });
 
-  if (res.ok) {
-    closeModal();
-    fetchDashboardData();
-  } else {
-    alert('Failed to record trade.');
+    if (res.ok) {
+      closeModal();
+      fetchDashboardData();
+    } else {
+      const err = await res.json();
+      alert(err.error || 'Failed to save trade.');
+    }
+  } catch (err) {
+    console.error('Error adding trade:', err);
   }
 }
 

@@ -257,13 +257,14 @@
   </div>
 
   <div id="tradeModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-40">
-    <div class="bg-gray-800 p-6 rounded-lg w-full max-w-lg border border-gray-700">
+    <div class="bg-gray-800 p-6 rounded-lg w-full max-w-xl border border-gray-700">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <h3 class="text-lg font-bold text-indigo-400">Add Trade</h3>
 
         <div class="bg-gray-900 px-4 py-2 rounded border border-gray-700 flex items-center gap-4 text-xs">
           <div>Estimated P&L: <span id="previewPnL" class="font-bold text-gray-300">₹0.00</span></div>
-          <div class="h-3 w-px bg-gray-700"></div> <div>Return %: <span id="previewPnLPercent" class="font-bold text-gray-300">0.00%</span></div>
+          <div class="h-3 w-px bg-gray-700"></div> 
+          <div>Return %: <span id="previewPnLPercent" class="font-bold text-gray-300">0.00%</span></div>
         </div>
       </div>
       <form id="tradeForm" class="space-y-3">
@@ -271,6 +272,7 @@
           <label class="block text-xs text-gray-400">Symbol / Asset</label>
           <input type="text" id="tSymbol" placeholder="e.g., NIFTY 50" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
         </div>
+        
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-xs text-gray-400">Instrument Type</label>
@@ -285,6 +287,7 @@
             <input type="date" id="tExpiry" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
           </div>
         </div>
+
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-xs text-gray-400">Entry Price (₹)</label>
@@ -295,6 +298,7 @@
             <input type="number" step="0.01" id="tExit" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
           </div>
         </div>
+
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-xs text-gray-400">Number of Lots</label>
@@ -316,10 +320,29 @@
             <input type="date" id="tDate" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
           </div>
         </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-xs text-gray-400">Entry Time</label>
+            <input type="time" id="tEntryTime" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400">Exit Time</label>
+            <input type="time" id="tExitTime" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-400">Market Close Strike Price (₹)</label>
+            <input type="number" step="0.01" id="tMarketCloseStrike" placeholder="e.g. 300" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+          </div>
+        </div>
+
+        <div>
+          
+        </div>
         
         <div>
           <label for="tNotes" class="block text-xs text-gray-400 mb-1">Notes / Strategy Remarks</label>
-          <textarea id="tNotes" rows="3" placeholder="Enter trade reasons, entry/exit notes..." class="w-full p-2.5 bg-gray-700 border border-gray-600 rounded text-white text-sm outline-none transition placeholder-gray-400"></textarea>
+          <textarea id="tNotes" rows="2" placeholder="Enter trade reasons, entry/exit notes..." class="w-full p-2.5 bg-gray-700 border border-gray-600 rounded text-white text-sm outline-none transition placeholder-gray-400"></textarea>
         </div>
 
         <div class="flex justify-end space-x-2 mt-4">
@@ -330,7 +353,7 @@
     </div>
   </div>
 
-<div id="dayTradesModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+  <div id="dayTradesModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
     <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
       
       <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950/50">

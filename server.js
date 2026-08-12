@@ -107,51 +107,62 @@ app.get('/api/strategies', requireAuth, async (req, res) => {
 });
 
 // Add Trade with Lot Size & PnL calculation
-app.post('/api/trades', async (req, res) => {
-  try {
-    const { 
-      symbol, 
-      instrument_type, 
-      expiry_date, 
-      entry_price, 
-      exit_price, 
-      quantity, 
-      lot_size, 
-      strategy_id, 
-      trade_date, 
-      notes // <--- 1. Extract notes from req.body
-    } = req.body;
+app.post('/api/trades', requireAuth, async (req, res) => {
+    try {
+      const {
+        symbol,
+        instrument_type,
+        expiry_date,
+        entry_price,
+        exit_price,
+        quantity,
+        lot_size,
+        strategy_id,
+        trade_date,
+        entry_time,
+        exit_time,
+        notes
+      } = req.body;
 
-    const userId = req.session.userId; 
+      const userId = req.session.userId;
 
-    const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
+      const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
 
-    const query = `
-      INSERT INTO trades (
-        user_id, symbol, instrument_type, expiry_date, 
-        entry_price, exit_price, quantity, lot_size, 
-        pnl, strategy_id, trade_date, notes
-      ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      RETURNING *
-    `;
+      const query = `
+        INSERT INTO trades (
+          user_id, symbol, instrument_type, expiry_date, 
+          entry_price, exit_price, quantity, lot_size, 
+          pnl, strategy_id, trade_date, entry_time, exit_time, notes
+        ) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING *
+      `;
 
-    const values = [
-      userId, symbol, instrument_type, expiry_date || null, 
-      entry_price, exit_price, quantity, lot_size, 
-      pnl, strategy_id, trade_date, notes || null // <--- 2. Pass notes here
-    ];
+      const values = [
+        userId,
+        symbol,
+        instrument_type,
+        expiry_date || null,
+        entry_price,
+        exit_price,
+        quantity,
+        lot_size,
+        pnl,
+        strategy_id || null,
+        trade_date,
+        entry_time || null,
+        exit_time || null,
+        notes || null
+      ];
 
-    const result = await pool.query(query, values);
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create trade' });
-  }
-});
-
-
-
+      const result = await pool.query(query, values);
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error('Error saving trade:', error);
+      res.status(500).json({ error: 'Failed to log trade' });
+    }
+  });
+  
 // Delete Trade Route
 app.delete('/api/trades/:id', requireAuth, async (req, res) => {
   try {
