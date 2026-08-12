@@ -106,62 +106,64 @@ app.get('/api/strategies', requireAuth, async (req, res) => {
   res.json(result.rows);
 });
 
-// Add Trade with Lot Size & PnL calculation
+// Add Trade with Lot Size, Entry/Exit Times, Market Close Strike & PnL calculation
 app.post('/api/trades', requireAuth, async (req, res) => {
-    try {
-      const {
-        symbol,
-        instrument_type,
-        expiry_date,
-        entry_price,
-        exit_price,
-        quantity,
-        lot_size,
-        strategy_id,
-        trade_date,
-        entry_time,
-        exit_time,
-        notes
-      } = req.body;
+  const {
+    symbol,
+    instrument_type,
+    expiry_date,
+    entry_price,
+    exit_price,
+    quantity,
+    lot_size,
+    strategy_id,
+    trade_date,
+    entry_time,
+    exit_time,
+    market_close_strike, // <--- MUST BE DESTRUCTURED HERE
+    notes
+  } = req.body;
 
-      const userId = req.session.userId;
+  try {
+    const userId = req.session.userId;
+    const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
 
-      const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
+    const query = `
+      INSERT INTO trades (
+        user_id, symbol, instrument_type, expiry_date, 
+        entry_price, exit_price, quantity, lot_size, 
+        pnl, strategy_id, trade_date, entry_time, exit_time, 
+        market_close_strike, notes
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *
+    `;
 
-      const query = `
-        INSERT INTO trades (
-          user_id, symbol, instrument_type, expiry_date, 
-          entry_price, exit_price, quantity, lot_size, 
-          pnl, strategy_id, trade_date, entry_time, exit_time, notes
-        ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        RETURNING *
-      `;
+    const values = [
+      userId,
+      symbol,
+      instrument_type,
+      expiry_date || null,
+      entry_price,
+      exit_price,
+      quantity,
+      lot_size,
+      pnl,
+      strategy_id || null,
+      trade_date,
+      entry_time || null,
+      exit_time || null,
+      market_close_strike ? parseFloat(market_close_strike) : null,
+      notes || null
+    ];
 
-      const values = [
-        userId,
-        symbol,
-        instrument_type,
-        expiry_date || null,
-        entry_price,
-        exit_price,
-        quantity,
-        lot_size,
-        pnl,
-        strategy_id || null,
-        trade_date,
-        entry_time || null,
-        exit_time || null,
-        notes || null
-      ];
-
-      const result = await pool.query(query, values);
-      res.status(201).json(result.rows[0]);
-    } catch (error) {
-      console.error('Error saving trade:', error);
-      res.status(500).json({ error: 'Failed to log trade' });
-    }
-  });
+    const result = await pool.query(query, values);
+    res.status(201).json({ success: true, trade: result.rows[0] });
+  } catch (err) {
+    console.error('Error inserting trade:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
   
 // Delete Trade Route
 app.delete('/api/trades/:id', requireAuth, async (req, res) => {
@@ -357,6 +359,9 @@ app.post('/api/external/trades', async (req, res) => {
       lot_size,
       strategy_id,
       trade_date,
+      entry_time,
+      exit_time,
+      market_close_strike, // <--- Add here
       notes
     } = req.body;
 
@@ -364,7 +369,6 @@ app.post('/api/external/trades', async (req, res) => {
       return res.status(400).json({ error: 'User Email ID is required' });
     }
 
-    // Resolve user_id from email
     const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
     if (userRes.rows.length === 0) {
       return res.status(404).json({ error: 'No user account found with this email address' });
@@ -372,16 +376,16 @@ app.post('/api/external/trades', async (req, res) => {
 
     const userId = userRes.rows[0].id;
 
-    // Calculate PnL
     const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
 
     const query = `
       INSERT INTO trades (
         user_id, symbol, instrument_type, expiry_date, 
         entry_price, exit_price, quantity, lot_size, 
-        pnl, strategy_id, trade_date, notes
+        pnl, strategy_id, trade_date, entry_time, exit_time, 
+        market_close_strike, notes
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `;
 
@@ -397,6 +401,9 @@ app.post('/api/external/trades', async (req, res) => {
       pnl,
       strategy_id || null,
       trade_date,
+      entry_time || null,
+      exit_time || null,
+      market_close_strike ? parseFloat(market_close_strike) : null, // <--- Add here
       notes || null
     ];
 

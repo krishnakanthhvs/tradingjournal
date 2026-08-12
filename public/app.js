@@ -24,6 +24,9 @@ function setupEventListeners() {
   document.getElementById('tradeForm')?.addEventListener('submit', handleAddTrade);
   document.getElementById('capitalForm')?.addEventListener('submit', handleSetCapital);
 
+  // Bind Strategy Form Submit
+  document.getElementById('addStrategyForm')?.addEventListener('submit', handleAddStrategy);
+
   ['tEntry', 'tExit', 'tQty', 'tLotSize'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', updateLivePnLPreview);
   });
@@ -58,7 +61,7 @@ function switchTab(tabName) {
       document.getElementById('pageTitle').innerText = views[key].title;
     } else {
       if (viewEl) viewEl.classList.add('hidden');
-      if (btnEl) btnEl.className = 'nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold text-gray-400 hover:bg-gray-700 hover:text-white transition';
+      if (btnEl) btnEl.className = 'nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white transition';
     }
   });
 
@@ -99,12 +102,17 @@ function updateLivePnLPreview() {
   }
 }
 
+// --- AUTHENTICATION & SESSION MANAGEMENT ---
 async function checkAuthSession() {
   try {
     const res = await fetch('/api/auth/me');
     const data = await res.json();
-    if (data.loggedIn) showDashboard();
-    else showAuth();
+    if (data.loggedIn) {
+      const email = data.user?.email || data.email || 'User';
+      showDashboard(email);
+    } else {
+      showAuth();
+    }
   } catch (err) {
     showAuth();
   }
@@ -115,9 +123,16 @@ function showAuth() {
   document.getElementById('appLayout')?.classList.add('hidden');
 }
 
-function showDashboard() {
+function showDashboard(userEmail = '') {
   document.getElementById('authSection')?.classList.add('hidden');
   document.getElementById('appLayout')?.classList.remove('hidden');
+
+  // Set logged in user email above Logout button
+  if (userEmail) {
+    const emailEl = document.getElementById('userEmailDisplay');
+    if (emailEl) emailEl.innerText = userEmail;
+  }
+
   loadStrategies();
   fetchDashboardData();
 }
@@ -154,8 +169,12 @@ async function handleAuthSubmit(e) {
   });
 
   const data = await res.json();
-  if (data.success) showDashboard();
-  else alert(data.error || 'Authentication failed');
+  if (data.success) {
+    const loggedInEmail = data.user?.email || email;
+    showDashboard(loggedInEmail);
+  } else {
+    alert(data.error || 'Authentication failed');
+  }
 }
 
 async function handleLogout() {
@@ -163,6 +182,7 @@ async function handleLogout() {
   showAuth();
 }
 
+// --- FETCH DASHBOARD DATA ---
 async function fetchDashboardData() {
   const selectedMonth = document.getElementById('monthPicker').value;
   const res = await fetch(`/api/dashboard?month=${selectedMonth}`);
@@ -210,11 +230,9 @@ function renderSmallCalendarWidget(trades = []) {
 
   const [year, month] = monthPickerVal.split('-').map(Number);
 
-  // 1. First day of the month index (0 = Sun, 6 = Sat)
   const firstDayIndex = new Date(year, month - 1, 1).getDay();
   const totalDays = new Date(year, month, 0).getDate();
 
-  // 2. Aggregate local daily P&L and Calculate Total Month P&L
   const dailyPnLMap = {};
   let totalMonthPnL = 0;
 
@@ -224,19 +242,16 @@ function renderSmallCalendarWidget(trades = []) {
       if (dateKey) {
         const pnl = parseFloat(trade.pnl || 0);
         dailyPnLMap[dateKey] = (dailyPnLMap[dateKey] || 0) + pnl;
-        totalMonthPnL += pnl; // Accumulate month total
+        totalMonthPnL += pnl;
       }
     }
   });
 
-  // 3. Update the Total P&L Badge next to Calendar Header
   const totalPnLEl = document.getElementById('smallCalendarTotalPnL');
   if (totalPnLEl) {
-    const isProfit = totalMonthPnL >= 0;
     const sign = totalMonthPnL > 0 ? '+' : '';
     totalPnLEl.innerText = `${sign}${formatRupees(totalMonthPnL)}`;
     
-    // Dynamic styling based on profit/loss
     if (totalMonthPnL > 0) {
       totalPnLEl.className = 'text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800/80 text-emerald-400';
     } else if (totalMonthPnL < 0) {
@@ -246,14 +261,12 @@ function renderSmallCalendarWidget(trades = []) {
     }
   }
 
-  // 4. Render Empty Lead Cells
   for (let i = 0; i < firstDayIndex; i++) {
     const emptyCell = document.createElement('div');
     emptyCell.className = 'h-8 bg-gray-950/30 border border-gray-800/20 rounded';
     grid.appendChild(emptyCell);
   }
 
-  // 5. Render Daily Calendar Tiles
   for (let day = 1; day <= totalDays; day++) {
     const monthStr = String(month).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
@@ -313,18 +326,22 @@ function navigateMonth(offset) {
 function renderTradesTable(trades) {
   currentMonthTrades = trades || [];
   const tbody = document.getElementById('tradesTableBody');
-  document.getElementById('tradeCountBadge').innerText = `${currentMonthTrades.length} Trades`;
+  const badge = document.getElementById('tradeCountBadge');
+  if (badge) badge.innerText = `${currentMonthTrades.length} Trades`;
+
+  if (!tbody) return;
 
   if (!currentMonthTrades || currentMonthTrades.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-gray-500">No trades recorded for this month.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="p-4 text-center text-gray-500">No trades recorded for this month.</td></tr>';
     return;
   }
 
   tbody.innerHTML = currentMonthTrades.map(t => {
-    const entry = parseFloat(t.entry_price);
-    const exit = parseFloat(t.exit_price);
-    const pnl = parseFloat(t.pnl);
-    const pnlPercent = ((exit - entry) / entry) * 100;
+    const entry = parseFloat(t.entry_price || 0);
+    const exit = parseFloat(t.exit_price || 0);
+    const mktClose = t.market_close_strike ? parseFloat(t.market_close_strike) : null;
+    const pnl = parseFloat(t.pnl || 0);
+    const pnlPercent = entry > 0 ? ((exit - entry) / entry) * 100 : 0;
     const lotSize = t.lot_size || 1;
 
     const formattedDate = new Date(t.trade_date).toLocaleDateString('en-GB', {
@@ -333,18 +350,23 @@ function renderTradesTable(trades) {
       year: 'numeric'
     });
 
+    const entryTime = t.entry_time ? t.entry_time.slice(0, 5) : '--:--';
+    const exitTime = t.exit_time ? t.exit_time.slice(0, 5) : '--:--';
+
     return `
       <tr class="hover:bg-gray-750 transition border-b border-gray-700/50">
         <td class="p-3 text-xs text-gray-400 font-medium">${formattedDate}</td>
         <td class="p-3 font-semibold text-white">${t.symbol}</td>
         <td class="p-3">
-          <span class="px-2 py-0.5 text-xs rounded ${t.instrument_type === 'Call' ? 'bg-green-900 text-green-300' : t.instrument_type === 'Put' ? 'bg-red-900 text-red-300' : 'bg-blue-900 text-blue-300'}">
+          <span class="px-2 py-0.5 text-xs rounded ${t.instrument_type === 'Call' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : t.instrument_type === 'Put' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-blue-900 text-blue-300'}">
             ${t.instrument_type}
           </span>
         </td>
+        <td class="p-3 text-xs font-mono text-indigo-300">${entryTime} / ${exitTime}</td>
         <td class="p-3 text-xs text-gray-400">${t.strategy_name || 'N/A'}</td>
         <td class="p-3">${formatRupees(entry)}</td>
         <td class="p-3">${formatRupees(exit)}</td>
+        <td class="p-3 text-amber-400 font-medium">${mktClose !== null ? formatRupees(mktClose) : '-'}</td>
         <td class="p-3 text-xs text-gray-300">${t.quantity} L (${lotSize}/L)</td>
         <td class="p-3 font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}">${formatRupees(pnl)}</td>
         <td class="p-3 font-bold ${pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}">${pnlPercent.toFixed(2)}%</td>
@@ -361,41 +383,53 @@ function renderTradesTable(trades) {
   }).join('');
 }
 
+// --- VIEW COMPLETE TRADE DETAILS ---
 function viewTradeDetails(id) {
   const trade = currentMonthTrades.find(t => t.id === id);
   if (!trade) return;
 
-  const entry = parseFloat(trade.entry_price);
-  const exit = parseFloat(trade.exit_price);
-  const pnl = parseFloat(trade.pnl);
-  const pnlPercent = ((exit - entry) / entry) * 100;
+  const entry = parseFloat(trade.entry_price || 0);
+  const exit = parseFloat(trade.exit_price || 0);
+  const mktClose = trade.market_close_strike ? parseFloat(trade.market_close_strike) : null;
+  const pnl = parseFloat(trade.pnl || 0);
+  const pnlPercent = entry > 0 ? ((exit - entry) / entry) * 100 : 0;
   const lotSize = trade.lot_size || 1;
 
-  const formattedDate = new Date(trade.trade_date).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
+  const formatDate = (dStr) => {
+    if (!dStr) return '---';
+    const d = new Date(dStr);
+    return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
-  document.getElementById('viewSymbol').innerText = trade.symbol;
-  document.getElementById('viewTradeDate').innerText = formattedDate;
+  document.getElementById('viewSymbol').innerText = trade.symbol || 'N/A';
   
   const badge = document.getElementById('viewTypeBadge');
-  badge.innerText = trade.instrument_type;
-  badge.className = `px-3 py-1 text-xs rounded-full font-semibold ${trade.instrument_type === 'Call' ? 'bg-green-900 text-green-300' : trade.instrument_type === 'Put' ? 'bg-red-900 text-red-300' : 'bg-blue-900 text-blue-300'}`;
+  badge.innerText = trade.instrument_type || 'N/A';
+  badge.className = `px-3 py-1 text-xs rounded-full font-semibold ${
+    trade.instrument_type === 'Call' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' :
+    trade.instrument_type === 'Put' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+    'bg-gray-800 text-gray-300'
+  }`;
+
+  document.getElementById('viewTradeDate').innerText = formatDate(trade.trade_date);
+  document.getElementById('viewExpiryDate').innerText = formatDate(trade.expiry_date);
+  document.getElementById('viewStrategy').innerText = trade.strategy_name || 'N/A';
 
   document.getElementById('viewEntry').innerText = formatRupees(entry);
   document.getElementById('viewExit').innerText = formatRupees(exit);
-  document.getElementById('viewQty').innerText = `${trade.quantity} Lots (${lotSize} Qty/Lot)`;
-  document.getElementById('viewStrategy').innerText = trade.strategy_name || 'N/A';
+  document.getElementById('viewMarketClose').innerText = mktClose !== null ? formatRupees(mktClose) : '---';
+
+  document.getElementById('viewQty').innerText = `${trade.quantity} Lot(s) [${lotSize} Qty]`;
+  document.getElementById('viewEntryTime').innerText = trade.entry_time || '---';
+  document.getElementById('viewExitTime').innerText = trade.exit_time || '---';
 
   const pnlEl = document.getElementById('viewPnL');
-  pnlEl.innerText = formatRupees(pnl);
-  pnlEl.className = `text-xl font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
+  pnlEl.innerText = `${pnl >= 0 ? '+' : ''}${formatRupees(pnl)}`;
+  pnlEl.className = `text-xl font-bold mt-0.5 ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`;
 
   const pnlPercentEl = document.getElementById('viewPnLPercent');
-  pnlPercentEl.innerText = `${pnlPercent.toFixed(2)}%`;
-  pnlPercentEl.className = `text-lg font-bold ${pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}`;
+  pnlPercentEl.innerText = `${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%`;
+  pnlPercentEl.className = `text-lg font-bold mt-0.5 ${pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}`;
 
   const notesEl = document.getElementById('viewNotes');
   if (trade.notes && trade.notes.trim() !== '') {
@@ -405,12 +439,12 @@ function viewTradeDetails(id) {
     notesEl.innerText = 'No notes entered for this trade.';
     notesEl.className = "bg-gray-900/80 p-3.5 rounded-lg border border-gray-700 text-sm text-gray-500 italic min-h-[80px] whitespace-pre-wrap";
   }
-    
-  document.getElementById('viewTradeModal').classList.remove('hidden');
+
+  document.getElementById('viewTradeModal')?.classList.remove('hidden');
 }
 
 function closeViewTradeModal() {
-  document.getElementById('viewTradeModal').classList.add('hidden');
+  document.getElementById('viewTradeModal')?.classList.add('hidden');
 }
 
 async function deleteTrade(id) {
@@ -531,13 +565,11 @@ function renderMonthlyChart(yearlyData) {
 }
 
 // --- LOAD & DISPLAY STRATEGIES IN SETTINGS AND DROPDOWN ---
-// --- LOAD STRATEGIES ---
 async function loadStrategies() {
   try {
     const res = await fetch('/api/strategies');
     const strategies = await res.json();
 
-    // 1. Populate Modal Dropdown
     const selectEl = document.getElementById('tStrategy');
     if (selectEl) {
       selectEl.innerHTML = strategies.length === 0
@@ -545,7 +577,6 @@ async function loadStrategies() {
         : strategies.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     }
 
-    // 2. Populate Settings Table
     const tbody = document.getElementById('strategiesTableBody');
     const badge = document.getElementById('strategyCountBadge');
 
@@ -576,7 +607,6 @@ async function loadStrategies() {
   }
 }
 
-// --- ADD STRATEGY WITH DESCRIPTION ---
 async function handleAddStrategy(e) {
   e.preventDefault();
   const nameInput = document.getElementById('newStrategySettingsName');
@@ -591,41 +621,9 @@ async function handleAddStrategy(e) {
     const res = await fetch('/api/strategies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description })
-    });
-
-    if (res.ok) {
-      nameInput.value = '';
-      if (descInput) descInput.value = '';
-      await loadStrategies();
-    } else {
-      const err = await res.json();
-      alert(err.error || 'Failed to add strategy.');
-    }
-  } catch (error) {
-    console.error('Error adding strategy:', error);
-    alert('An error occurred while saving the strategy.');
-  }
-}
-
-// --- ADD STRATEGY FROM SETTINGS ---
-async function handleAddStrategy(e) {
-  e.preventDefault();
-  const nameInput = document.getElementById('newStrategySettingsName');
-  const descInput = document.getElementById('newStrategySettingsDesc');
-
-  const name = nameInput?.value.trim();
-  const description = descInput?.value.trim(); // Reads value from textarea
-
-  if (!name) return;
-
-  try {
-    const res = await fetch('/api/strategies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         name: name, 
-        description: description || null // Ensures text is passed
+        description: description || null 
       })
     });
 
@@ -643,14 +641,13 @@ async function handleAddStrategy(e) {
   }
 }
 
-// --- DELETE STRATEGY FROM SETTINGS ---
 async function deleteStrategy(id) {
   if (!confirm('Are you sure you want to delete this strategy?')) return;
 
   try {
     const res = await fetch(`/api/strategies/${id}`, { method: 'DELETE' });
     if (res.ok) {
-      await loadStrategies(); // Refresh dropdown and settings table
+      await loadStrategies();
     } else {
       const err = await res.json();
       alert(err.error || 'Failed to delete strategy.');
@@ -661,7 +658,6 @@ async function deleteStrategy(id) {
 }
 
 function openModal() {
-  // Ensure fresh list of strategies from database
   loadStrategies();
 
   const tDate = document.getElementById('tDate');
@@ -674,14 +670,14 @@ function openModal() {
 }
 
 function closeModal() {
-  document.getElementById('tradeModal').classList.add('hidden');
+  document.getElementById('tradeModal')?.classList.add('hidden');
 }
 
 async function handleAddTrade(e) {
   e.preventDefault();
 
   const tradeData = {
-    symbol: document.getElementById('tSymbol').value.trim(),
+    symbol: document.getElementById('tSymbol').value,
     instrument_type: document.getElementById('tType').value,
     expiry_date: document.getElementById('tExpiry').value || null,
     entry_price: parseFloat(document.getElementById('tEntry').value),
@@ -692,25 +688,23 @@ async function handleAddTrade(e) {
     trade_date: document.getElementById('tDate').value,
     entry_time: document.getElementById('tEntryTime')?.value || null,
     exit_time: document.getElementById('tExitTime')?.value || null,
-    notes: document.getElementById('tNotes')?.value.trim() || null
+    market_close_strike: document.getElementById('tMarketCloseStrike')?.value 
+      ? parseFloat(document.getElementById('tMarketCloseStrike').value) 
+      : null,
+    notes: document.getElementById('tNotes')?.value || null
   };
 
-  try {
-    const res = await fetch('/api/trades', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(tradeData)
-    });
+  const res = await fetch('/api/trades', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(tradeData)
+  });
 
-    if (res.ok) {
-      closeModal();
-      fetchDashboardData();
-    } else {
-      const err = await res.json();
-      alert(err.error || 'Failed to save trade.');
-    }
-  } catch (err) {
-    console.error('Error adding trade:', err);
+  if (res.ok) {
+    closeModal();
+    fetchDashboardData();
+  } else {
+    alert('Failed to save trade');
   }
 }
 
@@ -723,13 +717,11 @@ function openDayTradesModal(dateKey, trades = []) {
 
   if (!modal || !listEl) return;
 
-  // Filter trades matching local YYYY-MM-DD
   const dayTrades = trades.filter(t => {
     if (!t.trade_date) return false;
     return getLocalDateKey(t.trade_date) === dateKey;
   });
 
-  // Header Date Formatting
   const [y, m, d] = dateKey.split('-').map(Number);
   const formattedDate = new Date(y, m - 1, d).toLocaleDateString('en-IN', {
     day: '2-digit',
@@ -801,11 +793,9 @@ function closeDayTradesModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-// Close modal when clicking dark backdrop
 window.addEventListener('click', (e) => {
   const modal = document.getElementById('dayTradesModal');
   if (e.target === modal) {
     closeDayTradesModal();
   }
 });
-
