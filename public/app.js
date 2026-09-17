@@ -261,6 +261,7 @@ function navigate(page, updateUrl = true) {
   $('#page-description').textContent = p[2];
   $('#page-eyebrow').textContent = p[3];
   window.scrollTo({ top: 0, behavior: 'instant' });
+  if (page === 'dashboard' && state.data.summary.count !== undefined) renderChart();
 }
 function render() {
   renderMetrics();
