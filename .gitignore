@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.pem
+*.dump
+tmp/
+output/
+.DS_Store

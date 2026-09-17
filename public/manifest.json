@@ -1,0 +1,9 @@
+{
+  "name": "TradeJournal",
+  "short_name": "TradeJournal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c141c",
+  "theme_color": "#0c141c",
+  "icons": [{ "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

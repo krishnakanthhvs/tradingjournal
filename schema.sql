@@ -1,35 +1,24 @@
--- Database Setup
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    starting_capital NUMERIC(12, 2) DEFAULT 10000.00,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS strategies (
-    id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS trades (
-    id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    symbol VARCHAR(50) NOT NULL,
-    instrument_type VARCHAR(20) NOT NULL,
-    expiry_date DATE,
-    entry_price NUMERIC(10, 2) NOT NULL,
-    exit_price NUMERIC(10, 2) NOT NULL,
-    quantity INT NOT NULL,
-    pnl NUMERIC(12, 2) NOT NULL,
-    strategy_id INT REFERENCES strategies(id) ON DELETE SET NULL,
-    trade_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- Default strategies
-INSERT INTO strategies (user_id, name) VALUES 
-(NULL, 'Order Block / Demand Zone'),
-(NULL, 'Breakout / Retest'),
-(NULL, 'Moving Average Crossover')
-ON CONFLICT DO NOTHING;
+BEGIN;
+CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY,email VARCHAR(255) UNIQUE NOT NULL,password_hash VARCHAR(255) NOT NULL,starting_capital NUMERIC(12,2) DEFAULT 10000,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS strategies (id SERIAL PRIMARY KEY,user_id INT REFERENCES users(id) ON DELETE CASCADE,name VARCHAR(100) NOT NULL);
+ALTER TABLE strategies ADD COLUMN IF NOT EXISTS description TEXT;
+CREATE TABLE IF NOT EXISTS trades (id SERIAL PRIMARY KEY,user_id INT REFERENCES users(id) ON DELETE CASCADE,symbol VARCHAR(50) NOT NULL,instrument_type VARCHAR(20) NOT NULL,expiry_date DATE,entry_price NUMERIC(10,2) NOT NULL,exit_price NUMERIC(10,2) NOT NULL,quantity INT NOT NULL,pnl NUMERIC(12,2) NOT NULL,strategy_id INT REFERENCES strategies(id) ON DELETE SET NULL,trade_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS lot_size INT DEFAULT 1;
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS entry_time TIME;
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS exit_time TIME;
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS market_close_strike NUMERIC(12,2);
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS side VARCHAR(10) NOT NULL DEFAULT 'Long';
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS fees NUMERIC(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS stop_loss NUMERIC(12,2);
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS target_price NUMERIC(12,2);
+CREATE TABLE IF NOT EXISTS monthly_capitals (id SERIAL PRIMARY KEY,user_id INT REFERENCES users(id) ON DELETE CASCADE,year_month VARCHAR(7) NOT NULL,capital NUMERIC(12,2) NOT NULL,UNIQUE(user_id,year_month));
+CREATE TABLE IF NOT EXISTS user_settings (user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,display_name VARCHAR(80) DEFAULT '',weekly_email BOOLEAN DEFAULT false,risk_per_trade NUMERIC(5,2) DEFAULT 1,default_lot_size INT DEFAULT 1,show_ticker BOOLEAN DEFAULT true);
+CREATE TABLE IF NOT EXISTS challenges (id SERIAL PRIMARY KEY,user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name VARCHAR(100) NOT NULL,target NUMERIC(12,2) NOT NULL CHECK(target>0),start_date DATE NOT NULL,end_date DATE NOT NULL,CHECK(end_date>=start_date));
+CREATE TABLE IF NOT EXISTS email_deliveries (user_id INT REFERENCES users(id) ON DELETE CASCADE,week_start DATE NOT NULL,sent_at TIMESTAMPTZ,provider_id TEXT,payload JSONB,PRIMARY KEY(user_id,week_start));
+ALTER TABLE email_deliveries ADD COLUMN IF NOT EXISTS attempted_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS trades_user_date_idx ON trades(user_id,trade_date);
+INSERT INTO strategies(user_id,name) SELECT NULL,n FROM (VALUES ('Order Block / Demand Zone'),('Breakout / Retest'),('Moving Average Crossover')) AS defaults(n) WHERE NOT EXISTS (SELECT 1 FROM strategies WHERE user_id IS NULL AND name=n);
+ALTER TABLE challenges ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS email_changes (user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, email VARCHAR(255) NOT NULL, code_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INT NOT NULL DEFAULT 0);
+COMMIT;

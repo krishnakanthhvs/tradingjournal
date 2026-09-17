@@ -1,470 +1,788 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trading Journal Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body class="bg-black text-gray-100 font-sans min-h-screen">
-
-  <div id="authSection" class="flex justify-center items-center h-screen">
-    <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-96 border border-gray-700">
-      <h2 id="authTitle" class="text-2xl font-bold mb-6 text-center text-indigo-400">Trading Journal Login</h2>
-      <form id="authForm" class="space-y-4">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#0c141c" />
+    <meta
+      name="description"
+      content="A clearer view of your trading. Track performance, build discipline, and make every trade a lesson."
+    />
+    <title>TradeJournal — Your edge, in focus</title>
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.css" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/theme.js"></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div id="auth" class="auth-screen">
+      <div class="auth-story">
+        <a class="brand" href="/"
+          ><img src="/logo.svg" alt="" /><span
+            >TradeJournal<span class="brand-dot">.</span></span
+          ></a
+        >
         <div>
-          <label class="block text-sm text-gray-400">Email</label>
-          <input type="email" id="authEmail" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-white mt-1">
+          <span class="eyebrow">LESS NOISE. MORE CLARITY.</span>
+          <h1>Your next edge<br />starts with<br /><em>reflection.</em></h1>
+          <p>A thoughtful space for every trade, every lesson,<br />and every step forward.</p>
+          <div class="auth-art" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span
+            ><span></span><span></span><span></span>
+          </div>
         </div>
-        <div id="passwordContainer">
-          <label class="block text-sm text-gray-400">Password</label>
-          <input type="password" id="authPassword" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-white mt-1">
+        <small>BUILT FOR THE PROCESS. NOT JUST THE PROFIT.</small>
+      </div>
+      <div class="auth-box">
+        <div class="auth-card">
+          <img src="/logo.svg" class="auth-logo" alt="TradeJournal logo" />
+          <h2 id="auth-title">Welcome back.</h2>
+          <p id="auth-copy">Your trading story continues here.</p>
+          <form id="auth-form">
+            <label
+              >Email address<input
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+                placeholder="you@example.com" /></label
+            ><label
+              >Password<input
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                minlength="8"
+                maxlength="72"
+                required
+                placeholder="At least 8 characters"
+            /></label>
+            <p id="auth-error" class="negative" role="alert"></p>
+            <button class="primary full" type="submit" id="auth-submit">
+              Sign in <span><i class="bi bi-arrow-up-right" aria-hidden="true"></i></span>
+            </button>
+          </form>
+          <button class="text-btn full" id="auth-toggle">New here? Create an account</button>
+          <div class="divider">TAKE A LOOK AROUND</div>
+          <button class="secondary full" id="demo-button">Explore a sample dashboard →</button>
+          <p class="fine">Sample data stays separate from your journal.</p>
         </div>
-        <button type="submit" id="authSubmitBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded text-white font-semibold transition">Login</button>
-      </form>
-      <div class="mt-4 text-xs text-gray-400 flex justify-between">
-        <button id="toggleAuthMode" class="hover:underline">Need an account? Register</button>
       </div>
     </div>
-  </div>
-
-  <div id="appLayout" class="hidden flex min-h-screen">
-
-    <aside class="w-64 h-screen sticky top-0 bg-gray-900 border-r border-gray-800 flex flex-col justify-between p-4 flex-shrink-0">
-      <div>
-        <div class="flex items-center space-x-2 mb-8 px-2">
-          <span class="text-2xl">📈</span>
-          <h1 class="text-lg font-bold text-indigo-400 tracking-wide">TradeJournal</h1>
-        </div>
-
-        <nav class="space-y-2">
-          <button id="navDashboard" onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold bg-indigo-600 text-white transition">
-            <span>📊</span>
-            <span>Dashboard</span>
-          </button>
-          <button id="navTrades" onclick="switchTab('trades')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white transition">
-            <span>📖</span>
-            <span>Trades History</span>
-          </button>
-          <button id="navSettings" onclick="switchTab('settings')" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold text-gray-400 hover:bg-gray-800 hover:text-white transition">
-            <span>⚙️</span>
-            <span>Settings</span>
+    <div id="app" hidden>
+      <aside class="sidebar">
+        <a class="brand" href="/"
+          ><img src="/logo.svg" alt="" /><span
+            >TradeJournal<span class="brand-dot">.</span></span
+          ></a
+        >
+        <div class="workspace-label">YOUR WORKSPACE</div>
+        <nav id="navigation">
+          <button data-page="dashboard" class="nav-item active">
+            <span class="nav-icon"><i class="bi bi-grid-1x2" aria-hidden="true"></i></span
+            ><span>Overview</span><span class="nav-dot"></span></button
+          ><button data-page="trades" class="nav-item">
+            <span class="nav-icon"><i class="bi bi-journal-text" aria-hidden="true"></i></span
+            ><span>Trade journal</span></button
+          ><button data-page="challenges" class="nav-item">
+            <span class="nav-icon"><i class="bi bi-flag" aria-hidden="true"></i></span
+            ><span>Challenges</span></button
+          ><button data-page="reports" class="nav-item">
+            <span class="nav-icon"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span
+            ><span>Reports</span>
           </button>
         </nav>
-      </div>
-
-      <div class="pt-4 border-t border-gray-800 mt-auto">
-        <div class="flex items-center space-x-2 px-2 mb-3">
-          <i class="fa-solid fa-circle-user text-gray-400 text-sm"></i>
-          <span id="userEmailDisplay" class="text-xs font-medium text-gray-400 truncate">Loading...</span>
-        </div>
-
-        <button id="logoutBtn" class="w-full flex items-center justify-center space-x-2 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white py-2.5 rounded-lg text-sm font-semibold transition">
-          <i class="fa-solid fa-right-from-bracket text-base"></i>
-          <span>Logout</span>
-        </button>
-      </div>
-    </aside>
-
-    <main class="flex-1 p-6 overflow-y-auto space-y-6">
-
-      <header class="flex justify-between items-center bg-gray-900 p-4 rounded-lg shadow border border-gray-800">
-        <h2 id="pageTitle" class="text-xl font-bold text-gray-200">Dashboard</h2>
-        <div class="flex items-center space-x-4">
-          <div>
-            <label class="text-xs text-gray-400 mr-2">Select Month:</label>
-            <input type="month" id="monthPicker" class="bg-gray-800 text-white p-2 rounded border border-gray-700 text-sm">
+        <div class="sidebar-bottom">
+          <div class="mindset">
+            <span class="little-spark"><i class="bi bi-stars" aria-hidden="true"></i></span>
+            <h4>Progress over perfection.</h4>
+            <p>Good trades start with a plan.<br />Great traders review it.</p>
           </div>
-          <button id="openTradeModalBtn" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-semibold text-white transition">+ Add Trade</button>
-        </div>
-      </header>
-
-      <div id="viewDashboard" class="space-y-6">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div class="bg-gray-900 p-4 rounded-lg border border-gray-800">
-            <div class="flex justify-between items-center">
-              <p class="text-sm text-gray-400">Capital of the Month</p>
-              <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded">🔒 Fixed</span>
-            </div>
-            <h3 id="cardCapital" class="text-2xl font-bold mt-1">₹0.00</h3>
-          </div>
-          <div class="bg-gray-900 p-4 rounded-lg border border-gray-800">
-            <p class="text-sm text-gray-400">P & L of the Month</p>
-            <h3 id="cardPnL" class="text-2xl font-bold mt-1">₹0.00</h3>
-            <p id="cardPnLPercent" class="text-xs text-gray-400 mt-1">0%</p>
-          </div>
-          <div class="bg-gray-900 p-4 rounded-lg border border-gray-800">
-            <p class="text-sm text-gray-400">Today's P & L</p>
-            <h3 id="cardTodayPnL" class="text-2xl font-bold mt-1">₹0.00</h3>
-          </div>
-          <div class="bg-gray-900 p-4 rounded-lg border border-gray-800">
-            <p class="text-sm text-gray-400">Winning Streak / Best Strategy</p>
-            <h3 id="cardStreak" class="text-xl font-bold mt-1">0 Trades</h3>
-            <p id="cardStrategy" class="text-xs text-indigo-400 mt-1">Best Strategy: N/A</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-gray-900 p-4 rounded-lg border-l-4 border-green-500 shadow border border-gray-800">
-            <p class="text-sm text-gray-400">Best Trade of the Month</p>
-            <div id="bestTradeBox" class="mt-2 text-sm">No trades logged</div>
-          </div>
-          <div class="bg-gray-900 p-4 rounded-lg border-l-4 border-red-500 shadow border border-gray-800">
-            <p class="text-sm text-gray-400">Worst Trade of the Month</p>
-            <div id="worstTradeBox" class="mt-2 text-sm">No trades logged</div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 shadow-xl flex flex-col justify-between h-[340px]">
-            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Daily P&L (Selected Month)</h4>
-            <div class="relative flex-1 w-full h-[260px]">
-              <canvas id="dailyPnLChart"></canvas>
-            </div>
-          </div>
-
-          <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 shadow-xl flex flex-col justify-between h-[340px]">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Monthly P&L (Year Overview)</h3>
-            <div class="relative flex-1 w-full h-[260px]">
-              <canvas id="monthlyChart"></canvas>
-            </div>
-          </div>
-
-          <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 shadow-xl flex flex-col justify-between h-[340px]">
+          <div class="profile">
+            <div class="avatar" id="avatar">T</div>
             <div>
-              <div class="flex justify-between items-center mb-3">
-                  <div class="flex items-center space-x-2">
-                    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400">P&L Calendar</h3>
-                    <span id="smallCalendarTotalPnL" class="text-xs font-bold font-mono px-1.5 py-0.5 rounded bg-gray-800 border border-gray-700 text-gray-400">
-                      ₹0.00
-                    </span>
-                  </div>
-
-                  <div class="flex items-center space-x-1 bg-gray-800 px-2 py-0.5 rounded border border-gray-700 text-xs">
-                    <button onclick="navigateMonth(-1)" class="text-gray-400 hover:text-white px-1 font-bold">&larr;</button>
-                    <span id="smallCalendarMonthTitle" class="text-indigo-400 font-semibold px-1">August 2026</span>
-                    <button onclick="navigateMonth(1)" class="text-gray-400 hover:text-white px-1 font-bold">&rarr;</button>
-                  </div>
-              </div>
-
-              <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
-                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+              <strong id="profile-name">Your journal</strong><small id="profile-email"></small>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <div class="main-shell">
+        <header class="topbar">
+          <div class="breadcrumb">
+            Workspace <span>/</span> <strong id="breadcrumb">Overview</strong>
+          </div>
+          <div class="topbar-right">
+            <span class="session-label"
+              ><i></i> <span id="session-status">Personal workspace</span></span
+            ><button
+              class="icon-button"
+              data-page="settings"
+              title="Email settings"
+              aria-label="Email settings"
+            >
+              <i class="bi bi-envelope" aria-hidden="true"></i>
+            </button>
+            <div class="account-menu">
+              <button
+                id="account-toggle"
+                class="avatar small"
+                aria-label="Account menu"
+                aria-expanded="false"
+                aria-controls="account-dropdown"
+              >
+                <span id="top-avatar">T</span>
+              </button>
+              <div id="account-dropdown" class="account-dropdown" hidden>
+                <div class="account-details">
+                  <strong id="menu-name"></strong><small id="menu-email"></small>
+                </div>
+                <button data-page="settings">
+                  <i class="bi bi-gear" aria-hidden="true"></i> Settings</button
+                ><label class="theme-control"
+                  >Appearance<select id="theme-select">
+                    <option value="system">System (auto)</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select></label
+                ><button id="logout">
+                  <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Sign out
+                </button>
               </div>
             </div>
-
-            <div id="smallCalendarGrid" class="grid grid-cols-7 gap-1 flex-1 overflow-hidden"></div>
           </div>
-        </div>
-
-      </div>
-
-      <div id="viewTrades" class="hidden space-y-4">
-        <div class="bg-gray-900 p-4 rounded-lg shadow border border-gray-800 space-y-4">
-          <div class="flex justify-between items-center">
-            <h3 class="text-md font-bold text-gray-200">All Logged Trades</h3>
-            <span id="tradeCountBadge" class="text-xs bg-indigo-900 text-indigo-300 px-2.5 py-1 rounded-full font-semibold">0 Trades</span>
+        </header>
+        <main>
+          <div id="demo-banner" class="demo-banner" hidden>
+            <span
+              ><i class="bi bi-stars" aria-hidden="true"></i> Preview mode · Illustrative sample
+              trades, not your account.</span
+            ><button id="exit-demo">Sign in to your journal →</button>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-gray-300">
-              <thead class="bg-gray-800 text-gray-400 uppercase text-xs">
-                <tr>
-                  <th class="p-3">Date</th>
-                  <th class="p-3">Symbol</th>
-                  <th class="p-3">Type</th>
-                  <th class="p-3">Time (In/Out)</th>
-                  <th class="p-3">Strategy</th>
-                  <th class="p-3">Entry (₹)</th>
-                  <th class="p-3">Exit (₹)</th>
-                  <th class="p-3">Market Close (₹)</th>
-                  <th class="p-3">Lots x Size</th>
-                  <th class="p-3">P&L (₹)</th>
-                  <th class="p-3">P&L %</th>
-                  <th class="p-3 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="tradesTableBody" class="divide-y divide-gray-800">
-                <tr><td colspan="12" class="p-4 text-center text-gray-500">No trades recorded for this month.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div id="viewSettings" class="hidden space-y-6">
-        <div class="bg-gray-900/80 p-6 rounded-2xl border border-gray-800 shadow-xl">
-          <h3 class="text-lg font-bold text-gray-100 mb-1">Journal Settings</h3>
-          <p class="text-xs text-gray-400">Configure trading strategies and dashboard preferences.</p>
-        </div>
-
-        <div class="bg-gray-900/80 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-6">
-          <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+          <div id="load-error" class="error-banner" hidden role="alert"></div>
+          <div class="page-heading">
             <div>
-              <h4 class="text-sm font-bold text-gray-200 uppercase tracking-wider">Trading Strategies</h4>
-              <p class="text-xs text-gray-400 mt-0.5">Manage the list of strategies available when logging trades.</p>
+              <div class="eyebrow" id="page-eyebrow">YOUR EDGE, IN FOCUS</div>
+              <h1 id="page-title">Performance overview<span class="brand-dot">.</span></h1>
+              <p id="page-description">A little perspective on every trade you make.</p>
             </div>
-            <span id="strategyCountBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800">
-              0 Strategies
-            </span>
-          </div>
-
-          <form id="addStrategySettingsForm" onsubmit="handleAddStrategy(event)" class="space-y-3 bg-gray-950/40 p-4 rounded-xl border border-gray-800">
-            <div>
-              <label class="block text-xs font-semibold text-gray-400 mb-1">Strategy Name</label>
-              <input type="text" id="newStrategySettingsName" required placeholder="e.g. Order Block / Liquidity Sweep" 
-                class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition">
-            </div>
-            
-            <div>
-              <label class="block text-xs font-semibold text-gray-400 mb-1">Strategy Explanation / Rules (Optional)</label>
-              <textarea id="newStrategySettingsDesc" rows="2" placeholder="e.g. Look for 15m order block confluence with 1D trend..." 
-                class="w-full p-2.5 bg-gray-800 border border-gray-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition"></textarea>
-            </div>
-
-            <div class="flex justify-end">
-              <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white rounded-xl transition flex items-center space-x-2">
-                <i class="fa-solid fa-plus"></i>
-                <span>Add Strategy</span>
+            <div class="heading-actions">
+              <label class="month-control"
+                ><span class="sr-only">Selected month</span
+                ><input id="month" type="month" required /></label
+              ><button class="primary" id="add-trade">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> <span>Log a trade</span>
               </button>
             </div>
-          </form>
-
-          <div class="overflow-x-auto border border-gray-800 rounded-xl">
-            <table class="w-full text-left text-xs text-gray-300">
-              <thead class="bg-gray-950/60 text-gray-400 font-semibold border-b border-gray-800">
-                <tr>
-                  <th class="p-3">#</th>
-                  <th class="p-3">Strategy Name</th>
-                  <th class="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="strategiesTableBody" class="divide-y divide-gray-800/60">
-                </tbody>
-            </table>
           </div>
-        </div>
+          <section id="view-dashboard" class="page-view">
+            <div id="metrics" class="metrics"></div>
+            <div class="overview-grid">
+              <article class="panel equity-panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>
+                      Performance curve
+                      <span class="info" title="Cumulative net P&L for the selected month"
+                        ><i class="bi bi-info-circle" aria-hidden="true"></i
+                      ></span>
+                    </h2>
+                    <p>Small decisions. A bigger picture.</p>
+                  </div>
+                  <div class="segmented" id="chart-mode">
+                    <button data-mode="cumulative" class="selected">Cumulative</button
+                    ><button data-mode="daily">Daily</button>
+                  </div>
+                </div>
+                <div class="chart-head">
+                  <strong id="curve-value">₹0</strong><span class="tag">NET P&L</span>
+                </div>
+                <div id="equity-chart" class="equity-chart"></div>
+                <div class="chart-footer">
+                  <span
+                    ><i class="legend-dot"></i>
+                    <span id="curve-label">Cumulative net P&L</span></span
+                  ><span>Fees included · INR</span>
+                </div>
+              </article>
+              <article class="panel distribution-panel">
+                <div class="panel-heading">
+                  <h2>Trade outcomes</h2>
+                  <span class="info"><i class="bi bi-pie-chart" aria-hidden="true"></i></span>
+                </div>
+                <div id="outcome-chart"></div>
+                <div id="outcome-legend" class="outcome-legend"></div>
+                <div class="insight" id="outcome-insight"></div>
+              </article>
+            </div>
+            <div class="secondary-grid">
+              <article class="panel calendar-panel">
+                <div class="panel-heading">
+                  <h2>Trading calendar</h2>
+                  <div class="calendar-nav">
+                    <button class="icon-button" id="previous-month" aria-label="Previous month">
+                      <i class="bi bi-chevron-left" aria-hidden="true"></i></button
+                    ><span id="calendar-month"></span
+                    ><button class="icon-button" id="next-month" aria-label="Next month">
+                      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+                <div id="calendar" class="calendar"></div>
+                <div class="calendar-legend">
+                  <span><i class="legend-dot"></i> Profit</span
+                  ><span><i class="legend-dot red"></i> Loss</span
+                  ><span><i class="legend-dot gray"></i> No trades</span>
+                </div>
+              </article>
+              <article class="panel challenge-feature">
+                <div class="panel-heading">
+                  <h2>Your next milestone</h2>
+                  <span class="mint"><i class="bi bi-flag" aria-hidden="true"></i></span>
+                </div>
+                <div id="featured-challenge"></div>
+              </article>
+            </div>
+            <div class="secondary-grid">
+              <article class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>Year at a glance</h2>
+                    <p>Monthly net results across the selected year.</p>
+                  </div>
+                  <span class="tag" id="year-label"></span>
+                </div>
+                <div id="year-chart" class="year-chart"></div>
+              </article>
+              <article class="panel">
+                <div class="panel-heading">
+                  <h2>From your playbook</h2>
+                  <span class="mint"><i class="bi bi-stars" aria-hidden="true"></i></span>
+                </div>
+                <div id="playbook"></div>
+              </article>
+            </div>
+            <article class="panel recent-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Recent trades <span class="count" id="recent-count">0</span></h2>
+                  <p>The decisions behind your numbers.</p>
+                </div>
+                <button class="text-btn" data-page="trades">
+                  View journal <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div id="recent-trades"></div>
+            </article>
+          </section>
+          <section id="view-trades" class="page-view" hidden>
+            <article class="panel">
+              <div class="panel-heading">
+                <h2>Your trade ledger</h2>
+                <span class="tag" id="filtered-count"></span>
+              </div>
+              <div class="filters">
+                <label class="search"
+                  ><span class="sr-only">Search trades</span
+                  ><input
+                    id="search-trades"
+                    placeholder="Search symbol, strategy, or notes…"
+                    type="search" /></label
+                ><label
+                  ><span class="sr-only">Outcome</span
+                  ><select id="outcome-filter">
+                    <option value="all">All outcomes</option>
+                    <option value="win">Winning trades</option>
+                    <option value="loss">Losing trades</option>
+                    <option value="flat">Breakeven</option>
+                  </select></label
+                ><button class="secondary" id="clear-filters">Clear filters</button>
+              </div>
+              <div id="all-trades"></div>
+            </article>
+          </section>
+          <section id="view-challenges" class="page-view" hidden>
+            <div class="challenge-intro">
+              <div>
+                <h2>A goal. A timeframe. A clearer path.</h2>
+                <p>
+                  Track your net results against a personal target. Stay disciplined; a target is
+                  never a reason to force a trade.
+                </p>
+              </div>
+              <button class="primary" id="add-challenge">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> New challenge
+              </button>
+            </div>
+            <div id="challenge-list" class="challenge-grid"></div>
+          </section>
+          <section id="view-reports" class="page-view" hidden>
+            <div class="report-grid">
+              <article class="panel report-preview">
+                <div class="report-paper">
+                  <div class="paper-brand"><img src="/logo.svg" alt="" />TradeJournal.</div>
+                  <small>MONTHLY PERFORMANCE REPORT</small>
+                  <h2 id="report-month"></h2>
+                  <div class="paper-stat">
+                    <span>NET REALISED P&L</span><strong id="report-net"></strong>
+                  </div>
+                  <div id="report-stats"></div>
+                  <div class="paper-lines"><i></i><i></i><i></i><i></i></div>
+                  <small>YOUR TRADES. A CLEARER PICTURE.</small>
+                </div>
+              </article>
+              <article class="panel report-description">
+                <span class="eyebrow">MADE FOR YOUR REVIEW</span>
+                <h2>Your month,<br />beautifully summarised.</h2>
+                <p>
+                  A clean, downloadable PDF with your performance summary and complete monthly trade
+                  ledger.
+                </p>
+                <ul>
+                  <li>Net profit & loss, win rate, and trading fees</li>
+                  <li>Every trade, with entry, exit, and position size</li>
+                  <li>Readable tables and numbered pages</li>
+                </ul>
+                <button class="primary" id="download-report">↓ Download monthly PDF</button>
+                <p class="fine">Uses the month selected above. All amounts in INR.</p>
+              </article>
+            </div>
+          </section>
+          <section id="view-settings" class="page-view" hidden>
+            <form id="settings-form">
+              <div class="settings-grid">
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h2>Your profile</h2>
+                      <p>A workspace that feels like yours.</p>
+                    </div>
+                  </div>
+                  <label
+                    >Display name<input
+                      name="display_name"
+                      maxlength="80"
+                      placeholder="What should we call you?" /></label
+                  ><label
+                    >Registered email<input id="settings-email" type="email" disabled
+                  /></label>
+                  <div class="form-row">
+                    <label
+                      >Default units per lot<input
+                        name="default_lot_size"
+                        type="number"
+                        min="1"
+                        max="100000"
+                        step="1"
+                        required /></label
+                    ><label
+                      >Risk per trade (%)<input
+                        name="risk_per_trade"
+                        type="number"
+                        min="0.1"
+                        max="100"
+                        step="0.1"
+                        required
+                    /></label>
+                  </div>
+                  <p class="fine">
+                    Risk is a planning reference based on monthly starting capital.
+                  </p>
+                </article>
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h2>Stay in the loop</h2>
+                      <p>Your review ritual, made simple.</p>
+                    </div>
+                  </div>
+                  <label class="toggle-row"
+                    ><span
+                      ><strong>Weekly email summary</strong
+                      ><small
+                        >Previous Monday–Sunday, delivered to your registered email.
+                        Asia/Kolkata.</small
+                      ></span
+                    ><input type="checkbox" name="weekly_email" role="switch"
+                  /></label>
+                  <p class="delivery-status" id="email-status"></p>
+                  <label
+                    >Appearance<select id="settings-theme">
+                      <option value="system">System (auto)</option>
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                    </select></label
+                  >
+                  <p class="fine">Saved on this device. System follows your device’s appearance.</p>
+                </article>
+              </div>
+              <div class="save-row">
+                <span class="fine">Preferences are saved to your account.</span
+                ><button class="primary" type="submit">Save preferences</button>
+              </div>
+            </form>
+            <article class="panel email-account-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Email address & delivery test</h2>
+                  <p>Verify a new address before changing your sign-in email.</p>
+                </div>
+                <button class="secondary" id="test-email" type="button">
+                  <i class="bi bi-envelope-check" aria-hidden="true"></i> Send test email
+                </button>
+              </div>
+              <form id="email-change-form">
+                <div class="form-row">
+                  <label
+                    >New email address<input
+                      name="email"
+                      type="email"
+                      autocomplete="email"
+                      required
+                      maxlength="255" /></label
+                  ><label
+                    >Current password<input
+                      name="password"
+                      type="password"
+                      autocomplete="current-password"
+                      required
+                      maxlength="72"
+                  /></label>
+                </div>
+                <button type="submit" class="secondary">Send verification code</button>
+              </form>
+              <form id="email-verify-form" hidden>
+                <label
+                  >6-digit verification code<input
+                    name="code"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxlength="6"
+                    required /></label
+                ><button type="submit" class="primary">Verify & update email</button>
+              </form>
+              <p id="account-email-status" class="fine" role="status"></p>
+            </article>
+            <div class="settings-grid">
+              <article class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>Monthly starting capital</h2>
+                    <p id="capital-month"></p>
+                  </div>
+                </div>
+                <form id="capital-form">
+                  <label
+                    >Starting capital (₹)<input
+                      name="capital"
+                      type="number"
+                      min="0"
+                      max="9999999999"
+                      step="0.01"
+                      required /></label
+                  ><button class="secondary" type="submit">Update capital</button>
+                </form>
+                <p class="fine">
+                  Used for returns and risk planning. Updating it does not change trade results.
+                </p>
+              </article>
+              <article class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>Your strategies</h2>
+                    <p>Build a repeatable playbook.</p>
+                  </div>
+                </div>
+                <div id="strategy-list"></div>
+                <form id="strategy-form" class="strategy-form">
+                  <label
+                    ><span class="sr-only">New strategy name</span
+                    ><input
+                      name="name"
+                      maxlength="100"
+                      placeholder="Name a new strategy"
+                      required /></label
+                  ><label
+                    >Description<textarea
+                      name="description"
+                      maxlength="2000"
+                      rows="3"
+                      placeholder="Entry rules, confirmation signals, and when to avoid this setup…"
+                    ></textarea></label
+                  ><button class="secondary" type="submit">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Add strategy
+                  </button>
+                </form>
+              </article>
+            </div>
+          </section>
+          <footer class="workspace-footer">
+            <span><img src="/logo.svg" alt="" /> A better process. One trade at a time.</span
+            ><span>TradeJournal · All journal amounts in INR</span>
+          </footer>
+        </main>
       </div>
-
-    </main>
-  </div>
-
-  <div id="capitalModal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50">
-    <div class="bg-gray-900 p-6 rounded-lg w-full max-w-md border border-indigo-500 shadow-2xl">
-      <h3 class="text-lg font-bold text-indigo-400 mb-2">Set Starting Capital</h3>
-      <p class="text-xs text-gray-400 mb-4">Please enter the starting capital in Rupees (₹) for <span id="capitalModalMonth" class="text-white font-bold"></span>. <strong class="text-amber-400">Once saved, this cannot be edited.</strong></p>
-      <form id="capitalForm" class="space-y-4">
-        <div>
-          <label class="block text-xs text-gray-400 mb-1">Starting Capital (₹)</label>
-          <input type="number" step="0.01" id="capitalInput" placeholder="e.g. 100000" required class="w-full p-2 bg-gray-800 rounded border border-gray-700 text-white font-semibold">
+    </div>
+    <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-copy">
+      <div class="dialog-heading">
+        <h2 id="delete-title">Delete item?</h2>
+        <button type="button" class="icon-button close-dialog" aria-label="Close">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <p id="delete-copy"></p>
+        <p id="delete-error" class="negative" role="alert"></p>
+      </div>
+      <div class="dialog-footer">
+        <button type="button" class="secondary close-dialog" autofocus>Keep it</button
+        ><button type="button" class="danger" id="confirm-delete">Delete</button>
+      </div>
+    </dialog>
+    <dialog id="trade-dialog">
+      <form id="trade-form">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">CAPTURE THE DECISION</span>
+            <h2 id="trade-title">Log a trade</h2>
+          </div>
+          <button type="button" class="icon-button close-dialog" aria-label="Close">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
         </div>
-        <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold text-white">Confirm & Lock Capital</button>
+        <div class="dialog-body">
+          <div class="form-row">
+            <label
+              >Symbol / asset<input
+                name="symbol"
+                required
+                maxlength="50"
+                placeholder="e.g. NIFTY 25000 CE"
+                list="symbols" /></label
+            ><datalist id="symbols">
+              <option>NIFTY</option>
+              <option>BANKNIFTY</option>
+              <option>SENSEX</option></datalist
+            ><label>Trade date<input name="trade_date" type="date" required /></label>
+          </div>
+          <div class="form-row three">
+            <label
+              >Instrument<select name="instrument_type">
+                <option>Equity</option>
+                <option>Call</option>
+                <option>Put</option>
+                <option>Futures</option>
+                <option>Forex</option>
+                <option>Commodity</option>
+              </select></label
+            ><label
+              >Direction<select name="side">
+                <option>Long</option>
+                <option>Short</option>
+              </select></label
+            ><label>Expiry date<input name="expiry_date" type="date" /></label>
+          </div>
+          <div class="form-divider">EXECUTION</div>
+          <div class="form-row three">
+            <label
+              >Entry price (₹)<input
+                name="entry_price"
+                type="number"
+                min="0"
+                max="99999999"
+                step="0.01"
+                required
+                placeholder="0.00" /></label
+            ><label
+              >Exit price (₹)<input
+                name="exit_price"
+                type="number"
+                min="0"
+                max="99999999"
+                step="0.01"
+                required
+                placeholder="0.00" /></label
+            ><label
+              >Total fees & taxes (₹)<input
+                name="fees"
+                type="number"
+                min="0"
+                step="0.01"
+                value="0"
+                required
+            /></label>
+          </div>
+          <div class="form-row">
+            <label
+              >Quantity / number of lots<input
+                name="quantity"
+                type="number"
+                min="1"
+                step="1"
+                value="1"
+                required /></label
+            ><label
+              >Units per lot<input
+                name="lot_size"
+                type="number"
+                min="1"
+                step="1"
+                value="1"
+                required
+            /></label>
+          </div>
+          <p class="fine">
+            Equity: use shares as quantity and 1 unit per lot. Derivatives: enter the actual
+            contract lot size.
+          </p>
+          <div class="form-row">
+            <label>Entry time (IST)<input name="entry_time" type="time" /></label
+            ><label>Exit time (IST)<input name="exit_time" type="time" /></label>
+          </div>
+          <div class="form-divider">PLAN & REFLECTION</div>
+          <div class="form-row three">
+            <label
+              >Stop loss (₹)<input
+                name="stop_loss"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Optional" /></label
+            ><label
+              >Target price (₹)<input
+                name="target_price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Optional" /></label
+            ><label
+              >Market close price (₹)<input
+                name="market_close_strike"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Optional"
+            /></label>
+          </div>
+          <label>Strategy<select name="strategy_id" id="trade-strategy"></select></label
+          ><label
+            >Trade notes<textarea
+              name="notes"
+              rows="3"
+              maxlength="5000"
+              placeholder="What was the setup? Did you follow your plan? What did you learn?"
+            ></textarea>
+          </label>
+          <div class="pnl-preview">
+            <div><small>NET REALISED P&L</small><strong id="trade-preview">₹0.00</strong></div>
+            <div><small>PLANNED RISK</small><span id="risk-preview">Add a stop loss</span></div>
+          </div>
+          <p id="risk-warning" class="fine"></p>
+          <p id="trade-error" role="alert" class="negative"></p>
+        </div>
+        <div class="dialog-footer">
+          <button type="button" class="secondary close-dialog">Cancel</button
+          ><button type="submit" class="primary">
+            Save trade <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+          </button>
+        </div>
       </form>
-    </div>
-  </div>
-
-  <div id="tradeModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-40">
-    <div class="bg-gray-800 p-6 rounded-lg w-full max-w-xl border border-gray-700">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <h3 class="text-lg font-bold text-indigo-400">Add Trade</h3>
-
-        <div class="bg-gray-900 px-4 py-2 rounded border border-gray-700 flex items-center gap-4 text-xs">
-          <div>Estimated P&L: <span id="previewPnL" class="font-bold text-gray-300">₹0.00</span></div>
-          <div class="h-3 w-px bg-gray-700"></div> 
-          <div>Return %: <span id="previewPnLPercent" class="font-bold text-gray-300">0.00%</span></div>
+    </dialog>
+    <dialog id="challenge-dialog">
+      <form id="challenge-form">
+        <div class="dialog-heading">
+          <div>
+            <span class="eyebrow">GIVE YOUR PROGRESS A DIRECTION</span>
+            <h2 id="challenge-form-title">Create a challenge</h2>
+          </div>
+          <button type="button" class="icon-button close-dialog" aria-label="Close">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
         </div>
-      </div>
-      <form id="tradeForm" class="space-y-3">
-        <div>
-          <label class="block text-xs text-gray-400">Symbol / Asset</label>
-          <input type="text" id="tSymbol" placeholder="e.g., NIFTY 50" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
+        <div class="dialog-body">
+          <label
+            >Challenge name<input
+              name="name"
+              maxlength="100"
+              required
+              placeholder="My 35K milestone"
+          /></label>
+          <div class="form-row">
+            <label
+              >Profit target (₹)<input
+                name="target"
+                type="number"
+                min="1"
+                step="0.01"
+                required
+                value="35000" /></label
+            ><label
+              >Duration (calendar days)<input
+                name="days"
+                type="number"
+                min="1"
+                max="3650"
+                value="30"
+                required
+            /></label>
+          </div>
+          <label>Start date<input name="start_date" type="date" required /></label>
+          <p class="fine">
+            Progress includes all net trade results in this period. Calendar days include weekends.
+            Targets are for tracking, not a promise of returns.
+          </p>
+          <div id="challenge-lock-warning" class="lock-warning" hidden>
+            <p>
+              <i class="bi bi-bell-fill" aria-hidden="true"></i> This is your only edit. Saving will
+              permanently lock the name, target and dates. Daily results will continue updating from
+              your trades.
+            </p>
+            <label class="acknowledgement"
+              ><input type="checkbox" name="acknowledge_lock" /> I understand: save this edit and
+              lock the challenge.</label
+            >
+          </div>
+          <p id="challenge-error" class="negative" role="alert"></p>
         </div>
-        
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-gray-400">Instrument Type</label>
-            <select id="tType" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-              <option value="Call">Call</option>
-              <option value="Put">Put</option>
-              <option value="Equity">Equity</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400">Expiry Date</label>
-            <input type="date" id="tExpiry" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-gray-400">Entry Price (₹)</label>
-            <input type="number" step="0.01" id="tEntry" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400">Exit Price (₹)</label>
-            <input type="number" step="0.01" id="tExit" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-gray-400">Number of Lots</label>
-            <input type="number" id="tQty" placeholder="e.g. 2" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400">Lot Size (Qty / Lot)</label>
-            <input type="number" id="tLotSize" placeholder="e.g. 25 for NIFTY" value="1" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-xs text-gray-400">Strategy</label>
-            <select id="tStrategy" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1"></select>
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400">Trade Date</label>
-            <input type="date" id="tDate" required class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block text-xs text-gray-400">Entry Time</label>
-            <input type="time" id="tEntryTime" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs text-gray-400">Exit Time</label>
-            <input type="time" id="tExitTime" class="w-full p-2 bg-gray-700 rounded border border-gray-600 text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-gray-400 mb-1">Market Close Strike</label>
-            <input type="number" step="0.01" id="tMarketCloseStrike" placeholder="e.g. 24150.00" class="w-full p-2.5 bg-gray-900 rounded-lg border border-gray-700 text-white text-sm focus:border-indigo-500 focus:outline-none">
-          </div>
-        </div>
-
-        <div>
-          
-        </div>
-        
-        <div>
-          <label for="tNotes" class="block text-xs text-gray-400 mb-1">Notes / Strategy Remarks</label>
-          <textarea id="tNotes" rows="2" placeholder="Enter trade reasons, entry/exit notes..." class="w-full p-2.5 bg-gray-700 border border-gray-600 rounded text-white text-sm outline-none transition placeholder-gray-400"></textarea>
-        </div>
-
-        <div class="flex justify-end space-x-2 mt-4">
-          <button type="button" id="closeModalBtn" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm transition">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold transition">Save Trade</button>
+        <div class="dialog-footer">
+          <button type="button" class="secondary close-dialog">Cancel</button
+          ><button class="primary" type="submit">
+            Create challenge <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+          </button>
         </div>
       </form>
-    </div>
-  </div>
-
-  <div id="dayTradesModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-      
-      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950/50">
+    </dialog>
+    <dialog id="challenge-detail-dialog" aria-labelledby="challenge-detail-title">
+      <div class="dialog-heading">
         <div>
-          <h3 id="dayTradesDate" class="text-base font-bold text-gray-100">Trades for Date</h3>
-          <p id="dayTradesTotalPnL" class="text-xs text-gray-400 mt-0.5">Total P&L: <span class="font-semibold text-green-400">₹0.00</span></p>
+          <span class="eyebrow">EVERY DAY, EVERY TRADE</span>
+          <h2 id="challenge-detail-title">Challenge breakdown</h2>
         </div>
-        <button onclick="closeDayTradesModal()" class="text-gray-400 hover:text-white text-xl font-bold px-2 py-1 transition">&times;</button>
+        <button class="icon-button close-dialog" type="button" aria-label="Close">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
       </div>
-
-      <div id="dayTradesList" class="p-4 overflow-y-auto space-y-3 flex-1"></div>
-
-      <div class="p-3 border-t border-gray-800 bg-gray-950/50 flex justify-end">
-        <button onclick="closeDayTradesModal()" class="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs font-semibold text-gray-200 rounded-lg transition">Close</button>
+      <div class="dialog-body">
+        <p id="challenge-detail-period"></p>
+        <p class="fine">
+          All closed trades dated within this challenge count automatically, including overlapping
+          challenges. Fees are included. Expand a day to see its trades.
+        </p>
+        <div id="challenge-detail-summary" class="detail-summary"></div>
+        <div id="challenge-daily"></div>
       </div>
-
-    </div>
-  </div>
-
-  <script src="app.js"></script>
-
-  <div id="viewTradeModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-    <div class="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
-      
-      <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950/50">
-        <div class="flex items-center space-x-3">
-          <h3 id="viewSymbol" class="text-lg font-bold text-gray-100">---</h3>
-          <span id="viewTypeBadge" class="px-3 py-1 text-xs rounded-full font-semibold bg-gray-800 text-gray-300">---</span>
-        </div>
-        <button onclick="closeViewTradeModal()" class="text-gray-400 hover:text-white text-xl font-bold px-2 py-1 transition">&times;</button>
+    </dialog>
+    <dialog id="day-dialog">
+      <div class="dialog-heading">
+        <h2 id="day-title"></h2>
+        <button type="button" class="icon-button close-dialog" aria-label="Close">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
       </div>
-
-      <div class="p-5 space-y-4">
-        
-        <div class="grid grid-cols-3 gap-3 bg-gray-950/40 p-3 rounded-xl border border-gray-800/80 text-center">
-          <div>
-            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Trade Date</p>
-            <p id="viewTradeDate" class="text-xs font-semibold text-gray-200 mt-1">---</p>
-          </div>
-          <div>
-            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Expiry Date</p>
-            <p id="viewExpiryDate" class="text-xs font-semibold text-gray-200 mt-1">---</p>
-          </div>
-          <div>
-            <p class="text-[11px] text-gray-400 uppercase tracking-wide">Strategy</p>
-            <p id="viewStrategy" class="text-xs font-semibold text-indigo-400 mt-1">---</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-3 text-center">
-          <div class="bg-gray-800/50 p-2.5 rounded-lg border border-gray-700/50">
-            <p class="text-[11px] text-gray-400">Entry Price</p>
-            <p id="viewEntry" class="text-sm font-bold text-gray-200 mt-1">₹0.00</p>
-          </div>
-          <div class="bg-gray-800/50 p-2.5 rounded-lg border border-gray-700/50">
-            <p class="text-[11px] text-gray-400">Exit Price</p>
-            <p id="viewExit" class="text-sm font-bold text-gray-200 mt-1">₹0.00</p>
-          </div>
-          <div class="bg-gray-800/50 p-2.5 rounded-lg border border-gray-700/50">
-            <p class="text-[11px] text-gray-400">Market Close</p>
-            <p id="viewMarketClose" class="text-sm font-bold text-amber-400 mt-1">₹0.00</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-3 text-center bg-gray-950/30 p-2.5 rounded-xl border border-gray-800/60">
-          <div>
-            <p class="text-[11px] text-gray-400">Quantity / Lots</p>
-            <p id="viewQty" class="text-xs font-bold text-gray-200 mt-0.5">0</p>
-          </div>
-          <div>
-            <p class="text-[11px] text-gray-400">Entry Time</p>
-            <p id="viewEntryTime" class="text-xs font-semibold text-gray-300 mt-0.5">---</p>
-          </div>
-          <div>
-            <p class="text-[11px] text-gray-400">Exit Time</p>
-            <p id="viewExitTime" class="text-xs font-semibold text-gray-300 mt-0.5">---</p>
-          </div>
-        </div>
-
-        <div class="flex justify-between items-center bg-gray-950/80 p-3.5 rounded-xl border border-gray-800">
-          <div>
-            <p class="text-xs text-gray-400">Total P&L</p>
-            <p id="viewPnL" class="text-xl font-bold mt-0.5">₹0.00</p>
-          </div>
-          <div class="text-right">
-            <p class="text-xs text-gray-400">Return %</p>
-            <p id="viewPnLPercent" class="text-lg font-bold mt-0.5">0.00%</p>
-          </div>
-        </div>
-
-        <div>
-          <p class="text-xs text-gray-400 mb-1 font-semibold">Trade Notes / Strategy Remarks</p>
-          <div id="viewNotes" class="bg-gray-900/80 p-3.5 rounded-lg border border-gray-700 text-sm text-gray-300 min-h-[80px] whitespace-pre-wrap">
-            No notes entered for this trade.
-          </div>
-        </div>
-
-      </div>
-
-      <div class="p-3 border-t border-gray-800 bg-gray-950/50 flex justify-end">
-        <button onclick="closeViewTradeModal()" class="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs font-semibold text-gray-200 rounded-lg transition">Close</button>
-      </div>
-
-    </div>
-  </div>
-</body>
+      <div id="day-trades" class="dialog-body"></div>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
 </html>

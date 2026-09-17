@@ -1,422 +1,537 @@
+require('dotenv').config({ quiet: true });
 const express = require('express');
 const session = require('express-session');
-const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const path = require('path');
-
+const crypto = require('crypto');
+const pool = require('./lib/db');
+const { trade, summary, date, number, fail } = require('./lib/domain');
+const email = require('./lib/email');
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-const pool = new Pool({
-  user: 'krishnakanth',
-  host: 'localhost',
-  database: 'trading_journal',
-  password: 'my_password_123', // Your DB Password
-  port: 5432,
-});
-
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({
-  secret: 'trading-journal-secret-key',
-  resave: false,
-  saveUninitialized: false
-}));
-
-const requireAuth = (req, res, next) => {
-  if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+const production = process.env.NODE_ENV === 'production';
+if (production && !process.env.SESSION_SECRET)
+  throw new Error('SESSION_SECRET is required in production');
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use(express.json({ limit: '32kb' }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin) {
+    try {
+      if (new URL(req.headers.origin).host !== req.get('host'))
+        return res.status(403).json({ error: 'Cross-origin request blocked' });
+    } catch {
+      return res.status(403).json({ error: 'Invalid origin' });
+    }
+  }
   next();
-};
-
-// --- AUTH ROUTES ---
-app.post('/api/auth/register', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const hash = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email',
-      [email, hash]
-    );
-    req.session.userId = result.rows[0].id;
-    res.json({ success: true, user: result.rows[0] });
-  } catch (err) {
-    res.status(400).json({ error: 'User already exists or invalid data.' });
-  }
 });
-
-app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0) return res.status(400).json({ error: 'User not found' });
-
-    const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) return res.status(400).json({ error: 'Invalid password' });
-
-    req.session.userId = user.id;
-    res.json({ success: true, user: { id: user.id, email: user.email } });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
-});
-
-app.get('/api/auth/me', (req, res) => {
-  if (req.session.userId) res.json({ loggedIn: true });
-  else res.json({ loggedIn: false });
-});
-
-// --- CAPITAL MANAGEMENT ---
-app.post('/api/capital', requireAuth, async (req, res) => {
-  const userId = req.session.userId;
-  const { yearMonth, capital } = req.body;
-
-  try {
-    const checkRes = await pool.query(
-      'SELECT capital FROM monthly_capitals WHERE user_id = $1 AND year_month = $2',
-      [userId, yearMonth]
-    );
-
-    if (checkRes.rows.length > 0) {
-      return res.status(400).json({ error: 'Capital for this month is fixed and cannot be changed.' });
-    }
-
-    await pool.query(
-      'INSERT INTO monthly_capitals (user_id, year_month, capital) VALUES ($1, $2, $3)',
-      [userId, yearMonth, capital]
-    );
-
-    res.json({ success: true, capital });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- TRADE & DASHBOARD ROUTES ---
-app.get('/api/strategies', requireAuth, async (req, res) => {
-  const result = await pool.query(
-    'SELECT * FROM strategies WHERE user_id = $1 OR user_id IS NULL',
-    [req.session.userId]
+const PgStore = require('connect-pg-simple')(session);
+app.use(
+  session({
+    name: 'tj.sid',
+    store: new PgStore({ pool, createTableIfMissing: true }),
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+    resave: false,
+    saveUninitialized: false,
+    cookie: { httpOnly: true, sameSite: 'lax', secure: production, maxAge: 7 * 86400000 },
+  }),
+);
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const auth = (req, res, next) =>
+  req.session.userId ? next() : res.status(401).json({ error: 'Please sign in to continue' });
+const { rateLimit } = require('express-rate-limit');
+app.use(
+  '/api/auth',
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 60,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many attempts. Try again in 15 minutes.' },
+  }),
+);
+const setSession = (req, id) =>
+  new Promise((resolve, reject) =>
+    req.session.regenerate((e) => {
+      if (e) return reject(e);
+      req.session.userId = id;
+      req.session.save((e) => (e ? reject(e) : resolve()));
+    }),
   );
-  res.json(result.rows);
-});
-
-// Add Trade with Lot Size, Entry/Exit Times, Market Close Strike & PnL calculation
-app.post('/api/trades', requireAuth, async (req, res) => {
-  const {
-    symbol,
-    instrument_type,
-    expiry_date,
-    entry_price,
-    exit_price,
-    quantity,
-    lot_size,
-    strategy_id,
-    trade_date,
-    entry_time,
-    exit_time,
-    market_close_strike, // <--- MUST BE DESTRUCTURED HERE
-    notes
-  } = req.body;
-
-  try {
-    const userId = req.session.userId;
-    const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
-
-    const query = `
-      INSERT INTO trades (
-        user_id, symbol, instrument_type, expiry_date, 
-        entry_price, exit_price, quantity, lot_size, 
-        pnl, strategy_id, trade_date, entry_time, exit_time, 
-        market_close_strike, notes
-      ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      RETURNING *
-    `;
-
-    const values = [
-      userId,
-      symbol,
-      instrument_type,
-      expiry_date || null,
-      entry_price,
-      exit_price,
-      quantity,
-      lot_size,
-      pnl,
-      strategy_id || null,
-      trade_date,
-      entry_time || null,
-      exit_time || null,
-      market_close_strike ? parseFloat(market_close_strike) : null,
-      notes || null
-    ];
-
-    const result = await pool.query(query, values);
-    res.status(201).json({ success: true, trade: result.rows[0] });
-  } catch (err) {
-    console.error('Error inserting trade:', err);
-    res.status(500).json({ error: 'Database error' });
-  }
-});
-  
-// Delete Trade Route
-app.delete('/api/trades/:id', requireAuth, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM trades WHERE id = $1 AND user_id = $2', [req.params.id, req.session.userId]);
+for (const mode of ['login', 'register'])
+  app.post(
+    `/api/auth/${mode}`,
+    wrap(async (req, res) => {
+      const address = String(req.body.email || '')
+          .trim()
+          .toLowerCase(),
+        password = String(req.body.password || '');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) || address.length > 255)
+        fail('Enter a valid email address');
+      if (
+        (mode === 'register' && password.length < 8) ||
+        !password.length ||
+        Buffer.byteLength(password) > 72
+      )
+        fail('Use a password of 8–72 bytes');
+      let user;
+      if (mode === 'register') {
+        const hash = await bcrypt.hash(password, 12);
+        try {
+          user = (
+            await pool.query(
+              'INSERT INTO users(email,password_hash) VALUES($1,$2) RETURNING id,email',
+              [address, hash],
+            )
+          ).rows[0];
+        } catch (e) {
+          if (e.code === '23505') fail('An account already exists with this email');
+          throw e;
+        }
+      } else {
+        user = (
+          await pool.query('SELECT id,email,password_hash FROM users WHERE lower(email)=$1', [
+            address,
+          ])
+        ).rows[0];
+        if (!user || !(await bcrypt.compare(password, user.password_hash)))
+          return res.status(400).json({ error: 'Email or password is incorrect' });
+      }
+      await setSession(req, user.id);
+      res.json({ success: true, user: { id: user.id, email: user.email } });
+    }),
+  );
+app.post('/api/auth/logout', (req, res, next) =>
+  req.session.destroy((e) => {
+    if (e) return next(e);
+    res.clearCookie('tj.sid');
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Dashboard Data Route
-app.get('/api/dashboard', requireAuth, async (req, res) => {
-  const userId = req.session.userId;
-  const yearMonth = req.query.month || new Date().toISOString().slice(0, 7);
-
-  try {
-    const capRes = await pool.query(
-      'SELECT capital FROM monthly_capitals WHERE user_id = $1 AND year_month = $2',
-      [userId, yearMonth]
-    );
-
-    const isCapitalSet = capRes.rows.length > 0;
-    const monthlyCapital = isCapitalSet ? parseFloat(capRes.rows[0].capital) : 0;
-
-    const monthTradesRes = await pool.query(
-      `SELECT t.*, s.name as strategy_name 
-       FROM trades t 
-       LEFT JOIN strategies s ON t.strategy_id = s.id 
-       WHERE t.user_id = $1 AND TO_CHAR(t.trade_date, 'YYYY-MM') = $2 
-       ORDER BY t.trade_date DESC`,
-      [userId, yearMonth]
-    );
-    const monthTrades = monthTradesRes.rows;
-
-    const monthPnL = monthTrades.reduce((acc, t) => acc + parseFloat(t.pnl), 0);
-    const monthPnLPercent = monthlyCapital > 0 ? ((monthPnL / monthlyCapital) * 100).toFixed(2) : '0.00';
-
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const todayRes = await pool.query(
-      `SELECT SUM(pnl) as today_pnl FROM trades WHERE user_id = $1 AND DATE(trade_date) = $2`,
-      [userId, todayStr]
-    );
-    const todayPnL = parseFloat(todayRes.rows[0]?.today_pnl || 0);
-
-    let bestTrade = null;
-    let worstTrade = null;
-    if (monthTrades.length > 0) {
-      const sorted = [...monthTrades].sort((a, b) => parseFloat(b.pnl) - parseFloat(a.pnl));
-      bestTrade = sorted[0];
-      worstTrade = sorted[sorted.length - 1];
-    }
-
-    const allTradesRes = await pool.query(
-      `SELECT pnl FROM trades WHERE user_id = $1 ORDER BY trade_date ASC`,
-      [userId]
-    );
-    let maxStreak = 0;
-    let currentStreak = 0;
-    allTradesRes.rows.forEach(t => {
-      if (parseFloat(t.pnl) > 0) {
-        currentStreak++;
-        if (currentStreak > maxStreak) maxStreak = currentStreak;
-      } else if (parseFloat(t.pnl) < 0) {
-        currentStreak = 0;
-      }
-    });
-
-    const strategyRes = await pool.query(
-      `SELECT s.name, SUM(t.pnl) as total_pnl 
-       FROM trades t 
-       JOIN strategies s ON t.strategy_id = s.id 
-       WHERE t.user_id = $1 
-       GROUP BY s.id, s.name 
-       ORDER BY total_pnl DESC LIMIT 1`,
-      [userId]
-    );
-    const bestStrategy = strategyRes.rows[0]?.name || 'N/A';
-
-    const year = yearMonth.split('-')[0];
-    const yearlyRes = await pool.query(
-      `SELECT TO_CHAR(trade_date, 'Mon') as month, SUM(pnl) as pnl, EXTRACT(MONTH FROM trade_date) as m_num
-       FROM trades 
-       WHERE user_id = $1 AND TO_CHAR(trade_date, 'YYYY') = $2
-       GROUP BY month, m_num ORDER BY m_num`,
-      [userId, year]
-    );
-
+  }),
+);
+app.get(
+  '/api/auth/me',
+  wrap(async (req, res) => {
+    if (!req.session.userId) return res.json({ loggedIn: false });
+    const user = (await pool.query('SELECT id,email FROM users WHERE id=$1', [req.session.userId]))
+      .rows[0];
+    res.json({ loggedIn: !!user, user });
+  }),
+);
+app.use('/api', auth);
+const monthValue = (v) => {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(v || '')) fail('Select a valid month');
+  return v;
+};
+async function monthTrades(id, month) {
+  return (
+    await pool.query(
+      `SELECT t.*,s.name AS strategy_name FROM trades t LEFT JOIN strategies s ON s.id=t.strategy_id WHERE t.user_id=$1 AND t.trade_date >= $2::date AND t.trade_date < $2::date+interval '1 month' ORDER BY t.trade_date DESC,t.id DESC`,
+      [id, month + '-01'],
+    )
+  ).rows;
+}
+app.get(
+  '/api/dashboard',
+  wrap(async (req, res) => {
+    const month = monthValue(req.query.month),
+      id = req.session.userId;
+    const [trades, cap, year] = await Promise.all([
+      monthTrades(id, month),
+      pool.query('SELECT capital FROM monthly_capitals WHERE user_id=$1 AND year_month=$2', [
+        id,
+        month,
+      ]),
+      pool.query(
+        `SELECT to_char(trade_date,'YYYY-MM') AS month,sum(pnl) AS pnl FROM trades WHERE user_id=$1 AND trade_date >= $2::date AND trade_date < $2::date + interval '1 year' GROUP BY 1 ORDER BY 1`,
+        [id, month.slice(0, 4) + '-01-01'],
+      ),
+    ]);
     res.json({
-      isCapitalSet,
-      monthlyCapital,
-      monthPnL,
-      monthPnLPercent,
-      todayPnL,
-      winningStreak: maxStreak,
-      bestStrategy,
-      bestTrade,
-      worstTrade,
-      monthTrades,
-      yearlyPnL: yearlyRes.rows
+      monthTrades: trades,
+      summary: summary(trades),
+      monthlyCapital: Number(cap.rows[0]?.capital || 0),
+      yearlyPnL: year.rows,
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/strategies', requireAuth, async (req, res) => {
-  const { name, description } = req.body;
-  const userId = req.session.userId;
-
-  if (!name || name.trim() === '') {
-    return res.status(400).json({ error: 'Strategy name is required' });
-  }
-
-  try {
-    const query = `
-      INSERT INTO strategies (user_id, name, description) 
-      VALUES ($1, $2, $3) 
-      RETURNING id, name, description, user_id
-    `;
-    
-    // Fallback to null if empty or undefined
-    const descValue = (description && description.trim() !== '') ? description.trim() : null;
-
-    const result = await pool.query(query, [userId, name.trim(), descValue]);
-    
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Database Error:', error);
-    res.status(500).json({ error: 'Failed to create strategy' });
-  }
-});
-
-// 2. DELETE STRATEGY (For Settings Page)
-app.delete('/api/strategies/:id', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  const userId = req.session.userId;
-
-  try {
-    const result = await pool.query(
-      'DELETE FROM strategies WHERE id = $1 AND user_id = $2 RETURNING id',
-      [id, userId]
+  }),
+);
+app.post(
+  '/api/capital',
+  wrap(async (req, res) => {
+    const month = monthValue(req.body.yearMonth),
+      capital = number(req.body.capital, 'capital', 0, 9999999999);
+    await pool.query(
+      'INSERT INTO monthly_capitals(user_id,year_month,capital) VALUES($1,$2,$3) ON CONFLICT(user_id,year_month) DO UPDATE SET capital=EXCLUDED.capital',
+      [req.session.userId, month, capital],
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Strategy not found or unauthorized' });
-    }
-
-    res.json({ success: true, message: 'Strategy deleted successfully' });
-  } catch (error) {
-    console.error('Database Error:', error);
-    res.status(500).json({ error: 'Failed to delete strategy' });
+    res.json({ success: true });
+  }),
+);
+app.get(
+  '/api/strategies',
+  wrap(async (req, res) =>
+    res.json(
+      (
+        await pool.query(
+          'SELECT * FROM strategies WHERE user_id=$1 OR user_id IS NULL ORDER BY id',
+          [req.session.userId],
+        )
+      ).rows,
+    ),
+  ),
+);
+app.post(
+  '/api/strategies',
+  wrap(async (req, res) => {
+    const name = String(req.body.name || '').trim(),
+      description = String(req.body.description || '').trim();
+    if (!name || name.length > 100 || description.length > 2000)
+      fail('Enter a strategy name (up to 100 characters)');
+    res
+      .status(201)
+      .json(
+        (
+          await pool.query(
+            'INSERT INTO strategies(user_id,name,description) VALUES($1,$2,$3) RETURNING *',
+            [req.session.userId, name, description],
+          )
+        ).rows[0],
+      );
+  }),
+);
+app.delete(
+  '/api/strategies/:id',
+  wrap(async (req, res) => {
+    const r = await pool.query('DELETE FROM strategies WHERE id=$1 AND user_id=$2 RETURNING id', [
+      req.params.id,
+      req.session.userId,
+    ]);
+    if (!r.rowCount)
+      return res.status(404).json({ error: 'Strategy not found or is a built-in strategy' });
+    res.json({ success: true });
+  }),
+);
+const fields = [
+  'symbol',
+  'instrument_type',
+  'expiry_date',
+  'entry_price',
+  'exit_price',
+  'quantity',
+  'lot_size',
+  'pnl',
+  'strategy_id',
+  'trade_date',
+  'entry_time',
+  'exit_time',
+  'market_close_strike',
+  'notes',
+  'side',
+  'fees',
+  'stop_loss',
+  'target_price',
+];
+async function saveTrade(req, res) {
+  const t = trade(req.body),
+    id = req.session.userId;
+  if (t.strategy_id) {
+    const found = await pool.query(
+      'SELECT id FROM strategies WHERE id=$1 AND (user_id=$2 OR user_id IS NULL)',
+      [t.strategy_id, id],
+    );
+    if (!found.rowCount) fail('Choose one of your strategies');
   }
+  const values = fields.map((k) => (t[k] === '' || t[k] === undefined ? null : t[k]));
+  let result;
+  if (req.params.id)
+    result = await pool.query(
+      `UPDATE trades SET ${fields.map((k, i) => `${k}=$${i + 1}`).join(',')} WHERE id=$19 AND user_id=$20 RETURNING *`,
+      [...values, req.params.id, id],
+    );
+  else
+    result = await pool.query(
+      `INSERT INTO trades(${fields.join(',')},user_id) VALUES(${[...values, id].map((_, i) => '$' + (i + 1)).join(',')}) RETURNING *`,
+      [...values, id],
+    );
+  if (!result.rowCount) return res.status(404).json({ error: 'Trade not found' });
+  res.status(req.params.id ? 200 : 201).json({ trade: result.rows[0] });
+}
+app.post('/api/trades', wrap(saveTrade));
+app.put('/api/trades/:id', wrap(saveTrade));
+app.delete(
+  '/api/trades/:id',
+  wrap(async (req, res) => {
+    const r = await pool.query('DELETE FROM trades WHERE id=$1 AND user_id=$2 RETURNING id', [
+      req.params.id,
+      req.session.userId,
+    ]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Trade not found' });
+    res.json({ success: true });
+  }),
+);
+app.get(
+  '/api/settings',
+  wrap(async (req, res) => {
+    const id = req.session.userId;
+    await pool.query('INSERT INTO user_settings(user_id) VALUES($1) ON CONFLICT DO NOTHING', [id]);
+    const settings = (await pool.query('SELECT * FROM user_settings WHERE user_id=$1', [id]))
+      .rows[0];
+    const last = (
+      await pool.query('SELECT max(sent_at) AS sent_at FROM email_deliveries WHERE user_id=$1', [
+        id,
+      ])
+    ).rows[0];
+    res.json({ ...settings, emailConfigured: email.configured(), lastEmail: last.sent_at });
+  }),
+);
+app.put(
+  '/api/settings',
+  wrap(async (req, res) => {
+    const b = req.body,
+      name = String(b.display_name || '').trim();
+    if (name.length > 80) fail('Name is too long');
+    if (typeof b.weekly_email !== 'boolean' || typeof b.show_ticker !== 'boolean')
+      fail('Invalid preferences');
+    const risk = number(b.risk_per_trade, 'risk percentage', 0.1, 100),
+      lot = number(b.default_lot_size, 'lot size', 1, 100000);
+    if (!Number.isInteger(lot)) fail('Lot size must be a whole number');
+    await pool.query(
+      `INSERT INTO user_settings(user_id,display_name,weekly_email,risk_per_trade,default_lot_size,show_ticker) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id) DO UPDATE SET display_name=$2,weekly_email=$3,risk_per_trade=$4,default_lot_size=$5,show_ticker=$6`,
+      [req.session.userId, name, b.weekly_email, risk, lot, b.show_ticker],
+    );
+    res.json({ success: true });
+  }),
+);
+const accountEmailLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  keyGenerator: (req) => String(req.session.userId),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many email requests. Please try again in an hour.' },
 });
-
-// --- EXTERNAL PUBLIC TRADE ROUTES ---
-
-// 1. Fetch Strategies by User Email (Public)
-app.get('/api/external/strategies', async (req, res) => {
-  const { email } = req.query;
-
-  try {
-    let query = 'SELECT id, name FROM strategies WHERE user_id IS NULL';
-    let params = [];
-
-    if (email) {
-      const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
-      if (userRes.rows.length > 0) {
-        query = 'SELECT id, name FROM strategies WHERE user_id = $1 OR user_id IS NULL';
-        params = [userRes.rows[0].id];
+app.post(
+  '/api/account/email/request',
+  accountEmailLimit,
+  wrap(async (req, res) => {
+    const address = String(req.body.email || '')
+      .trim()
+      .toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) || address.length > 255)
+      fail('Enter a valid email address');
+    const user = (
+      await pool.query('SELECT email,password_hash FROM users WHERE id=$1', [req.session.userId])
+    ).rows[0];
+    if (!(await bcrypt.compare(String(req.body.password || ''), user.password_hash)))
+      fail('Current password is incorrect');
+    if (address === user.email.toLowerCase())
+      fail('This is already your registered email. Use Send test email instead.');
+    if ((await pool.query('SELECT id FROM users WHERE lower(email)=$1', [address])).rowCount)
+      fail('This email is unavailable');
+    const code = String(crypto.randomInt(100000, 1000000));
+    const hash = crypto.createHash('sha256').update(code).digest('hex');
+    // Persist before sending: an ambiguous provider response must not invalidate a received code.
+    await pool.query(
+      `INSERT INTO email_changes(user_id,email,code_hash,expires_at,attempts) VALUES($1,$2,$3,now()+interval '10 minutes',0) ON CONFLICT(user_id) DO UPDATE SET email=$2,code_hash=$3,expires_at=EXCLUDED.expires_at,attempts=0`,
+      [req.session.userId, address, hash],
+    );
+    await email.sendAccountEmail(
+      address,
+      'Verify your TradeJournal email',
+      `Your verification code is ${code}. It expires in 10 minutes. If you did not request this change, ignore this email.`,
+      crypto.randomUUID(),
+    );
+    res.json({
+      success: true,
+      message: 'Verification code sent. Your registered email has not changed yet.',
+    });
+  }),
+);
+app.post(
+  '/api/account/email/confirm',
+  accountEmailLimit,
+  wrap(async (req, res) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const pending = (
+        await client.query('SELECT * FROM email_changes WHERE user_id=$1 FOR UPDATE', [
+          req.session.userId,
+        ])
+      ).rows[0];
+      if (!pending || new Date(pending.expires_at) < new Date() || pending.attempts >= 5) {
+        await client.query('ROLLBACK');
+        return res
+          .status(400)
+          .json({ error: 'Code expired or too many attempts. Request a new code.' });
       }
+      const hash = crypto
+        .createHash('sha256')
+        .update(String(req.body.code || ''))
+        .digest('hex');
+      if (hash !== pending.code_hash) {
+        await client.query('UPDATE email_changes SET attempts=attempts+1 WHERE user_id=$1', [
+          req.session.userId,
+        ]);
+        await client.query('COMMIT');
+        return res.status(400).json({ error: 'Incorrect verification code' });
+      }
+      await client.query('UPDATE users SET email=$2 WHERE id=$1', [
+        req.session.userId,
+        pending.email,
+      ]);
+      await client.query('DELETE FROM email_changes WHERE user_id=$1', [req.session.userId]);
+      await client.query('COMMIT');
+      res.json({ success: true, email: pending.email });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      if (e.code === '23505') return res.status(400).json({ error: 'This email is unavailable' });
+      throw e;
+    } finally {
+      client.release();
     }
-
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Error fetching strategies:', err);
-    res.status(500).json({ error: 'Failed to fetch strategies' });
-  }
+  }),
+);
+app.post(
+  '/api/account/email/test',
+  accountEmailLimit,
+  wrap(async (req, res) => {
+    const user = (await pool.query('SELECT email FROM users WHERE id=$1', [req.session.userId]))
+      .rows[0];
+    await email.sendAccountEmail(
+      user.email,
+      'Your TradeJournal test email',
+      'Your email connection is working. Weekly trade summaries will be sent here when enabled in Settings. This test does not change your weekly email preference.',
+      `test-${req.session.userId}-${Math.floor(Date.now() / 60000)}`,
+    );
+    res.json({
+      success: true,
+      message: `Test email accepted for ${user.email}. Check your inbox and spam folder.`,
+    });
+  }),
+);
+app.put(
+  '/api/challenges/:id',
+  wrap(async (req, res) => {
+    const b = req.body,
+      name = String(b.name || '').trim(),
+      target = number(b.target, 'target', 1, 9999999999);
+    if (!name || name.length > 100) fail('Give your challenge a name');
+    if (!date(b.start_date) || !date(b.end_date) || b.end_date < b.start_date)
+      fail('Choose a valid challenge period');
+    if (b.acknowledge_lock !== true)
+      fail('Confirm that this edit will permanently lock the challenge settings');
+    const result = await pool.query(
+      'UPDATE challenges SET name=$3,target=$4,start_date=$5,end_date=$6,edited_at=now() WHERE id=$1 AND user_id=$2 AND edited_at IS NULL RETURNING *',
+      [req.params.id, req.session.userId, name, target, b.start_date, b.end_date],
+    );
+    if (!result.rowCount)
+      return res
+        .status(409)
+        .json({ error: 'This challenge is locked or unavailable. Only one edit is allowed.' });
+    res.json(result.rows[0]);
+  }),
+);
+app.get(
+  '/api/challenges/:id',
+  wrap(async (req, res) => {
+    const challenge = (
+      await pool.query('SELECT * FROM challenges WHERE id=$1 AND user_id=$2', [
+        req.params.id,
+        req.session.userId,
+      ])
+    ).rows[0];
+    if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
+    const trades = (
+      await pool.query(
+        `SELECT t.*,s.name AS strategy_name FROM trades t LEFT JOIN strategies s ON s.id=t.strategy_id WHERE t.user_id=$1 AND t.trade_date >= $2::date AND t.trade_date < $3::date+interval '1 day' ORDER BY t.trade_date ASC,t.id ASC`,
+        [req.session.userId, challenge.start_date, challenge.end_date],
+      )
+    ).rows;
+    res.json({ challenge, trades, summary: summary(trades) });
+  }),
+);
+app.get(
+  '/api/challenges',
+  wrap(async (req, res) =>
+    res.json(
+      (
+        await pool.query(
+          `SELECT c.*,COALESCE(sum(t.pnl),0) AS progress,count(t.id) AS trade_count FROM challenges c LEFT JOIN trades t ON t.user_id=c.user_id AND t.trade_date>=c.start_date AND t.trade_date<c.end_date+interval '1 day' WHERE c.user_id=$1 GROUP BY c.id ORDER BY c.end_date DESC`,
+          [req.session.userId],
+        )
+      ).rows,
+    ),
+  ),
+);
+app.post(
+  '/api/challenges',
+  wrap(async (req, res) => {
+    const b = req.body,
+      name = String(b.name || '').trim(),
+      target = number(b.target, 'target', 1, 9999999999);
+    if (!name || name.length > 100) fail('Give your challenge a name');
+    if (!date(b.start_date) || !date(b.end_date) || b.end_date < b.start_date)
+      fail('Choose a valid challenge period');
+    res
+      .status(201)
+      .json(
+        (
+          await pool.query(
+            'INSERT INTO challenges(user_id,name,target,start_date,end_date) VALUES($1,$2,$3,$4,$5) RETURNING *',
+            [req.session.userId, name, target, b.start_date, b.end_date],
+          )
+        ).rows[0],
+      );
+  }),
+);
+app.delete(
+  '/api/challenges/:id',
+  wrap(async (req, res) => {
+    const r = await pool.query('DELETE FROM challenges WHERE id=$1 AND user_id=$2 RETURNING id', [
+      req.params.id,
+      req.session.userId,
+    ]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Challenge not found' });
+    res.json({ success: true });
+  }),
+);
+app.get(
+  '/api/reports/monthly.pdf',
+  wrap(async (req, res) => {
+    const month = monthValue(req.query.month),
+      trades = await monthTrades(req.session.userId, month),
+      user = (await pool.query('SELECT email FROM users WHERE id=$1', [req.session.userId]))
+        .rows[0];
+    require('./lib/report')(res, trades, user, month);
+  }),
+);
+app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
+app.get('/quick-add.html', (req, res) => res.redirect('/?add=1'));
+app.use(
+  '/vendor/bootstrap-icons',
+  express.static(path.join(__dirname, 'node_modules/bootstrap-icons/font')),
+);
+app.use(express.static(path.join(__dirname, 'public')));
+app.use((err, req, res, next) => {
+  console.error(err.message);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({
+    error: err.status
+      ? err.message
+      : 'Unable to complete this request. Check the server and database connection.',
+  });
 });
-
-// 2. Add Trade using Email (Public)
-app.post('/api/external/trades', async (req, res) => {
-  try {
-    const {
-      email,
-      symbol,
-      instrument_type,
-      expiry_date,
-      entry_price,
-      exit_price,
-      quantity,
-      lot_size,
-      strategy_id,
-      trade_date,
-      entry_time,
-      exit_time,
-      market_close_strike, // <--- Add here
-      notes
-    } = req.body;
-
-    if (!email || !email.trim()) {
-      return res.status(400).json({ error: 'User Email ID is required' });
-    }
-
-    const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
-    if (userRes.rows.length === 0) {
-      return res.status(404).json({ error: 'No user account found with this email address' });
-    }
-
-    const userId = userRes.rows[0].id;
-
-    const pnl = (parseFloat(exit_price) - parseFloat(entry_price)) * parseInt(quantity) * parseInt(lot_size || 1);
-
-    const query = `
-      INSERT INTO trades (
-        user_id, symbol, instrument_type, expiry_date, 
-        entry_price, exit_price, quantity, lot_size, 
-        pnl, strategy_id, trade_date, entry_time, exit_time, 
-        market_close_strike, notes
-      ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      RETURNING *
-    `;
-
-    const values = [
-      userId,
-      symbol,
-      instrument_type,
-      expiry_date || null,
-      entry_price,
-      exit_price,
-      quantity,
-      lot_size,
-      pnl,
-      strategy_id || null,
-      trade_date,
-      entry_time || null,
-      exit_time || null,
-      market_close_strike ? parseFloat(market_close_strike) : null, // <--- Add here
-      notes || null
-    ];
-
-    const result = await pool.query(query, values);
-    res.status(201).json({ success: true, trade: result.rows[0] });
-  } catch (err) {
-    console.error('External Trade Creation Error:', err);
-    res.status(500).json({ error: 'Failed to log trade via external form' });
-  }
-});
-
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: `API route not found: ${req.originalUrl}` });
-});
-
-app.listen(PORT, () => console.log(`Server running on http://localhost:3000`));
+if (require.main === module) {
+  app.listen(process.env.PORT || 3000, () =>
+    console.log(`TradeJournal running on http://localhost:${process.env.PORT || 3000}`),
+  );
+  const run = () =>
+    email.sendWeekly(pool).catch((e) => console.error('Weekly scheduler:', e.message));
+  run();
+  setInterval(run, 60 * 60 * 1000).unref();
+}
+module.exports = app;
