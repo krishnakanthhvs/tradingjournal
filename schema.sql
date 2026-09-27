@@ -21,4 +21,13 @@ CREATE INDEX IF NOT EXISTS trades_user_date_idx ON trades(user_id,trade_date);
 INSERT INTO strategies(user_id,name) SELECT NULL,n FROM (VALUES ('Order Block / Demand Zone'),('Breakout / Retest'),('Moving Average Crossover')) AS defaults(n) WHERE NOT EXISTS (SELECT 1 FROM strategies WHERE user_id IS NULL AND name=n);
 ALTER TABLE challenges ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS email_changes (user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, email VARCHAR(255) NOT NULL, code_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INT NOT NULL DEFAULT 0);
+-- Unknown legacy creation timestamps stay locked; migration never resets the six-hour window.
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMPTZ;
+ALTER TABLE trades ALTER COLUMN recorded_at SET DEFAULT now();
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS broker TEXT NOT NULL DEFAULT 'Other';
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS fee_mode TEXT NOT NULL DEFAULT 'manual';
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS product TEXT NOT NULL DEFAULT 'intraday';
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS exchange TEXT NOT NULL DEFAULT 'NSE';
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS charge_details JSONB;
+CREATE TABLE IF NOT EXISTS quick_entry_codes (email TEXT PRIMARY KEY, user_id INT REFERENCES users(id) ON DELETE CASCADE, code_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INT NOT NULL DEFAULT 0, requested_at TIMESTAMPTZ NOT NULL DEFAULT now());
 COMMIT;

@@ -3056,3 +3056,200 @@ small {
 .profile-email {
   overflow-wrap: anywhere;
 }
+
+/* Semantic outcomes remain distinct from the blue brand colour in both themes. */
+.calendar-day.has-profit {
+  background: rgba(24, 151, 96, 0.18);
+  border-color: rgba(24, 151, 96, 0.4);
+  color: var(--green);
+}
+.calendar-day.has-loss {
+  background: rgba(219, 68, 88, 0.16);
+  border-color: rgba(219, 68, 88, 0.4);
+  color: var(--red);
+}
+.calendar-day.has-profit span,
+.calendar-day.has-profit b {
+  color: var(--green);
+}
+.calendar-day.has-loss span,
+.calendar-day.has-loss b {
+  color: var(--red);
+}
+.metric-icon,
+.metric-icon .bi {
+  font-size: 24px;
+  width: 32px;
+  height: 32px;
+}
+.header-greeting {
+  font-size: 14px;
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.appearance-menu {
+  position: relative;
+}
+.appearance-menu .bi {
+  font-size: 21px;
+}
+.appearance-menu .account-dropdown {
+  min-width: 210px;
+  padding: 18px;
+}
+.strategy-accordion {
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+}
+.strategy-accordion summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.strategy-accordion[open] summary .bi {
+  transform: rotate(180deg);
+}
+.strategy-accordion > div {
+  padding-top: 12px;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.charge-section {
+  margin: 20px 0;
+}
+.charge-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px 0;
+}
+.charge-totals strong {
+  display: block;
+  font-size: 18px;
+  margin-top: 8px;
+}
+.charge-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.charge-breakdown summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+.charge-section a {
+  text-decoration: underline;
+}
+.trade-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.trade-details dt {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 6px;
+}
+.trade-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.quick-page {
+  overflow: auto;
+  min-height: 100vh;
+}
+.quick-shell {
+  max-width: 800px;
+  margin: 36px auto;
+  padding: 0 20px 40px;
+}
+.quick-shell .panel {
+  padding: 28px;
+}
+.quick-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  font-size: 22px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.quick-shell h1 {
+  margin: 16px 0;
+}
+.quick-shell p {
+  line-height: 1.7;
+}
+.quick-shell form label {
+  margin: 16px 0;
+}
+.quick-shell .dialog-body {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+.quick-shell .dialog-heading {
+  padding: 16px 0;
+}
+.quick-shell .dialog-footer {
+  padding: 20px 0 0;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  .header-greeting {
+    max-width: 130px;
+    font-size: 12px;
+  }
+  .charge-totals {
+    gap: 8px;
+  }
+  .charge-totals strong {
+    font-size: 14px;
+  }
+  .quick-shell .panel {
+    padding: 18px;
+  }
+  .trade-details {
+    grid-template-columns: 1fr;
+  }
+}
+.topbar-right .appearance-menu .icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+}
+@media (max-width: 640px) {
+  .topbar .breadcrumb {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .topbar-right {
+    flex-shrink: 0;
+    gap: 6px;
+  }
+  .header-greeting {
+    max-width: 110px;
+  }
+}
+.account-details a {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+  text-decoration: underline;
+}

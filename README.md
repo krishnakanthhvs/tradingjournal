@@ -69,3 +69,27 @@ Use **Edit once** to change a challenge's name, target, or dates. A warning and 
 In Settings, use **Email address & delivery test** to request a verified email change. Enter the current password and new address, then enter the six-digit code delivered to the new address. Codes expire after ten minutes, allow five wrong attempts, and can only be used once. The old address remains active until verification succeeds. **Send test email** always sends to the saved registered address and does not enable weekly summaries. Provider configuration is required; requests are rate limited. The test confirms provider acceptance, not inbox delivery.
 
 The footer remains fixed above mobile navigation. Text is at least 12px, with locally hosted Bootstrap Icons. Navigation uses URL fragments so refresh and browser Back/Forward preserve the current page.
+
+## September 2026 trade-entry update
+
+- `/quick-add.html` verifies a registered email using a single-use six-digit code (10-minute expiry, five verification attempts). A verified session can add trades for 20 minutes, but cannot read the journal, edit/delete trades or change the account. Request limits apply per IP and email. Requires `RESEND_API_KEY` and `EMAIL_FROM`; provider failures are recorded in server logs. Verification replaces the current browser session with a restricted quick-entry session.
+- Broker estimates include brokerage, STT/CTT, stamp duty, exchange charges, SEBI, applicable IPFT, allocated DP charges and GST. Reviewed schedules and limitations are linked from the form at `/charge-rates.html`. Rates are a versioned snapshot, not a live feed or contract-note import. Updating schedules requires updating `public/charges.js` and its tests. Saved itemised charges are retained in `charge_details`.
+- Supported automatic estimates: NSE ordinary equity/F&O and MCX non-agricultural futures/options from September 2026. Zerodha, Groww (equity/F&O), Angel Plus, Dhan, Sahi regular, ICICI iValue (except delivery), Kotak Trade Free regular and Other are included. Promotional/custom plans support a brokerage-total override. Other defaults to ₹20 per executed order. Older trades and unsupported products use actual charges.
+- Delivery DP fees must be allocated explicitly before GST; enter zero when charged against another entry. Standard brokerage assumes one executed order per side; enter total brokerage for multiple orders. Estimates round individual charges to paise; contract notes may aggregate/round differently. No automated financing, settlement, subscription or penalty allocation.
+- Net P&L remains the stored `pnl`. Gross P&L is `pnl + fees`, including legacy trades. Dashboard, ledger, challenges, PDFs and weekly emails show the distinction. Goals and calendar outcomes use net P&L.
+- Deletion is allowed only in the six hours after the server records a new trade. The API enforces this atomically. Editing never resets this timestamp. Legacy entries with no reliable `recorded_at` stay locked rather than receiving a new deletion window; editing remains available.
+
+### Production update
+
+Back up the database first. Deploy the updated files, install dependencies, then apply `schema.sql` **as the database table owner**, before restarting the app. For the existing Ubuntu installation with postgres-owned tables:
+
+```sh
+cd /home/ubuntu/tradingjournal
+sudo -u postgres pg_dump -d trading_journal -Fc > ~/trading-journal-before-charges-$(date +%Y%m%d-%H%M%S).dump
+sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d trading_journal -f schema.sql
+sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d trading_journal -c 'GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO krishnakanth; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO krishnakanth;'
+pm2 restart trading-journal --update-env
+pm2 logs trading-journal --lines 0
+```
+
+The migration adds columns and the quick-entry verification table; it does not recompute existing trades. Deploying code without this migration will cause missing-column/table errors. Locally, `npm run migrate` is sufficient when the configured role owns the tables.

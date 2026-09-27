@@ -56,3 +56,17 @@ test('weekly report uses previous complete Monday–Sunday in India', () => {
     end: '2026-09-14',
   });
 });
+
+test('decimal totals reconcile without floating point negative zero', () => {
+  const rows = Array.from({ length: 30 }, (_, i) => ({
+    pnl: i % 2 ? -2651.15 : 2548.85,
+    fees: 51.15,
+    id: i,
+    trade_date: '2026-09-01',
+  }));
+  const s = summary(rows);
+  assert.equal(s.net, -1534.5);
+  assert.equal(s.fees, 1534.5);
+  assert.equal(s.gross, 0);
+  assert.equal(summary([{ pnl: 0.1 }, { pnl: 0.2 }, { pnl: -0.3 }]).net, 0);
+});

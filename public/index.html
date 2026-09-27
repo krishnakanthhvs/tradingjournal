@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.css" />
     <link rel="stylesheet" href="/styles.css" />
     <script src="/theme.js"></script>
+    <script src="/charges.js" defer></script>
+    <script src="/charge-form.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
@@ -41,6 +43,7 @@
           <img src="/logo.svg" class="auth-logo" alt="TradeJournal logo" />
           <h2 id="auth-title">Welcome back.</h2>
           <p id="auth-copy">Your trading story continues here.</p>
+          <p><a href="/quick-add.html">Add a trade using an email code →</a></p>
           <form id="auth-form">
             <label
               >Email address<input
@@ -114,16 +117,28 @@
             Workspace <span>/</span> <strong id="breadcrumb">Overview</strong>
           </div>
           <div class="topbar-right">
-            <span class="session-label"
-              ><i></i> <span id="session-status">Personal workspace</span></span
-            ><button
-              class="icon-button"
-              data-page="settings"
-              title="Email settings"
-              aria-label="Email settings"
-            >
-              <i class="bi bi-envelope" aria-hidden="true"></i>
-            </button>
+            <span id="session-status" class="header-greeting">Hi, trader</span>
+            <div class="appearance-menu">
+              <button
+                id="appearance-toggle"
+                class="icon-button"
+                aria-label="Appearance"
+                title="Appearance"
+                aria-expanded="false"
+                aria-controls="appearance-panel"
+              >
+                <i class="bi bi-circle-half" aria-hidden="true"></i>
+              </button>
+              <div id="appearance-panel" class="account-dropdown" hidden>
+                <label
+                  >Appearance<select id="header-theme">
+                    <option value="system">System (auto)</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select></label
+                >
+              </div>
+            </div>
             <div class="account-menu">
               <button
                 id="account-toggle"
@@ -136,7 +151,8 @@
               </button>
               <div id="account-dropdown" class="account-dropdown" hidden>
                 <div class="account-details">
-                  <strong id="menu-name"></strong><small id="menu-email"></small>
+                  <strong id="menu-name"></strong><small id="menu-email"></small
+                  ><a href="/quick-add.html">Quick entry with email code</a>
                 </div>
                 <button data-page="settings">
                   <i class="bi bi-gear" aria-hidden="true"></i> Settings</button
@@ -605,7 +621,7 @@
                 required
                 placeholder="0.00" /></label
             ><label
-              >Total fees & taxes (₹)<input
+              >Total charges (₹)<input
                 name="fees"
                 type="number"
                 min="0"
@@ -782,6 +798,15 @@
         </button>
       </div>
       <div id="day-trades" class="dialog-body"></div>
+    </dialog>
+    <dialog id="view-trade-dialog">
+      <div class="dialog-heading">
+        <h2>Trade details</h2>
+        <button type="button" class="icon-button close-dialog" aria-label="Close">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div id="view-trade-body" class="dialog-body"></div>
     </dialog>
     <div id="toast" class="toast" role="status" hidden></div>
   </body>

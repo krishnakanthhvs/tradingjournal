@@ -1,6 +1,204 @@
 <!doctype html>
 <html lang="en">
-  <meta charset="utf-8" /><meta http-equiv="refresh" content="0;url=/?add=1" /><title>
-    TradeJournal</title
-  ><a href="/?add=1">Sign in to add a trade</a>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Quick entry · TradeJournal</title>
+    <link rel="icon" href="/logo.svg" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.css" />
+    <script src="/theme.js"></script>
+    <script src="/charges.js" defer></script>
+    <script src="/charge-form.js" defer></script>
+    <script src="/quick-add.js" defer></script>
+  </head>
+  <body class="quick-page">
+    <main class="quick-shell">
+      <a class="quick-brand" href="/"
+        ><img src="/logo.svg" alt="" width="36" height="36" />TradeJournal.</a
+      >
+      <section class="panel" id="verify-panel">
+        <span class="eyebrow">QUICK ENTRY</span>
+        <h1>A trade worth remembering.</h1>
+        <p>
+          Use a code sent to your registered email. No password needed. This opens a 20-minute
+          session for adding trades only.
+        </p>
+        <form id="email-form">
+          <label
+            >Registered email<input
+              name="email"
+              type="email"
+              autocomplete="email"
+              maxlength="255"
+              required /></label
+          ><button class="primary">Send verification code</button>
+        </form>
+        <form id="code-form" hidden>
+          <label
+            >Six-digit email code<input
+              name="code"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              required /></label
+          ><button class="primary">Verify & open trade form</button>
+        </form>
+        <p id="verify-message" role="status"></p>
+        <a href="/">Sign in to your full journal</a>
+      </section>
+      <section class="panel" id="quick-trade-panel" hidden>
+        <p id="quick-identity"></p>
+        <form id="trade-form">
+          <div class="dialog-heading">
+            <div>
+              <span class="eyebrow">CAPTURE THE DECISION</span>
+              <h2 id="trade-title">Log a trade</h2>
+            </div>
+            <button type="button" class="icon-button" id="end-session" aria-label="End quick entry">
+              <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-row">
+              <label
+                >Symbol / asset<input
+                  name="symbol"
+                  required
+                  maxlength="50"
+                  placeholder="e.g. NIFTY 25000 CE"
+                  list="symbols" /></label
+              ><datalist id="symbols">
+                <option>NIFTY</option>
+                <option>BANKNIFTY</option>
+                <option>SENSEX</option></datalist
+              ><label>Trade date<input name="trade_date" type="date" required /></label>
+            </div>
+            <div class="form-row three">
+              <label
+                >Instrument<select name="instrument_type">
+                  <option>Equity</option>
+                  <option>Call</option>
+                  <option>Put</option>
+                  <option>Futures</option>
+                  <option>Forex</option>
+                  <option>Commodity</option>
+                </select></label
+              ><label
+                >Direction<select name="side">
+                  <option>Long</option>
+                  <option>Short</option>
+                </select></label
+              ><label>Expiry date<input name="expiry_date" type="date" /></label>
+            </div>
+            <div class="form-divider">EXECUTION</div>
+            <div class="form-row three">
+              <label
+                >Entry price (₹)<input
+                  name="entry_price"
+                  type="number"
+                  min="0"
+                  max="99999999"
+                  step="0.01"
+                  required
+                  placeholder="0.00" /></label
+              ><label
+                >Exit price (₹)<input
+                  name="exit_price"
+                  type="number"
+                  min="0"
+                  max="99999999"
+                  step="0.01"
+                  required
+                  placeholder="0.00" /></label
+              ><label
+                >Total charges (₹)<input
+                  name="fees"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value="0"
+                  required
+              /></label>
+            </div>
+            <div class="form-row">
+              <label
+                >Quantity / number of lots<input
+                  name="quantity"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value="1"
+                  required /></label
+              ><label
+                >Units per lot<input
+                  name="lot_size"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value="1"
+                  required
+              /></label>
+            </div>
+            <p class="fine">
+              Equity: use shares as quantity and 1 unit per lot. Derivatives: enter the actual
+              contract lot size.
+            </p>
+            <div class="form-row">
+              <label>Entry time (IST)<input name="entry_time" type="time" /></label
+              ><label>Exit time (IST)<input name="exit_time" type="time" /></label>
+            </div>
+            <div class="form-divider">PLAN & REFLECTION</div>
+            <div class="form-row three">
+              <label
+                >Stop loss (₹)<input
+                  name="stop_loss"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Optional" /></label
+              ><label
+                >Target price (₹)<input
+                  name="target_price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Optional" /></label
+              ><label
+                >Market close price (₹)<input
+                  name="market_close_strike"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Optional"
+              /></label>
+            </div>
+            <label>Strategy<select name="strategy_id" id="trade-strategy"></select></label
+            ><label
+              >Trade notes<textarea
+                name="notes"
+                rows="3"
+                maxlength="5000"
+                placeholder="What was the setup? Did you follow your plan? What did you learn?"
+              ></textarea>
+            </label>
+            <div class="pnl-preview">
+              <div><small>NET REALISED P&L</small><strong id="trade-preview">₹0.00</strong></div>
+              <div><small>PLANNED RISK</small><span id="risk-preview">Add a stop loss</span></div>
+            </div>
+            <p id="risk-warning" class="fine"></p>
+            <p id="trade-error" role="alert" class="negative"></p>
+          </div>
+          <div class="dialog-footer">
+            <button type="button" class="secondary close-dialog">Cancel</button
+            ><button type="submit" class="primary">
+              Save trade <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </form>
+      </section>
+      <p id="quick-success" role="status"></p>
+    </main>
+  </body>
 </html>

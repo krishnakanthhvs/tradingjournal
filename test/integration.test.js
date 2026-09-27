@@ -176,16 +176,91 @@ test(
       assert.equal(Buffer.from(pdf.data).subarray(0, 4).toString(), '%PDF');
       assert.equal((await request('/api/external/trades', 'POST', body, '')).status, 401);
       assert.equal((await request('/api/dashboard?month=invalid')).status, 400);
+      // Editing never renews the six-hour deletion window; ownership still stays private.
+      await pool.query("UPDATE trades SET recorded_at=now()-interval '7 hours' WHERE id=$1", [id]);
+      assert.equal((await request(`/api/trades/${id}`, 'DELETE')).status, 409);
+      assert.equal((await request(`/api/trades/${id}`, 'PUT', body)).status, 200);
+      assert.equal((await request(`/api/trades/${id}`, 'DELETE')).status, 409);
+      assert.equal((await request(`/api/trades/${id}`, 'DELETE', null, otherCookie)).status, 404);
+      await pool.query('UPDATE trades SET recorded_at=now() WHERE id=$1', [id]);
       assert.equal((await request(`/api/trades/${id}`, 'DELETE')).status, 200);
       assert.equal(Number((await request('/api/challenges')).data[0].progress), 0);
       assert.equal((await request(`/api/challenges/${challenge.data.id}`, 'DELETE')).status, 200);
       assert.equal((await request(`/api/strategies/${strategy.data.id}`, 'DELETE')).status, 200);
+      // Passwordless verification grants create-only access, not an authenticated account.
+      const quick = await request('/api/quick-entry/request', 'POST', { email: emails[2] }, '');
+      assert.equal(quick.status, 200);
+      let quickCookie = quick.cookie.split(';')[0];
+      const quickCode = messages.at(-1).text.match(/\b\d{6}\b/)[0];
+      assert.equal((await request('/api/quick-entry/form', 'GET', null, quickCookie)).status, 401);
+      assert.equal(
+        (await request('/api/quick-entry/verify', 'POST', { code: '000000' }, quickCookie)).status,
+        400,
+      );
+      const verified = await request(
+        '/api/quick-entry/verify',
+        'POST',
+        { code: quickCode },
+        quickCookie,
+      );
+      assert.equal(verified.status, 200, JSON.stringify(verified.data));
+      quickCookie = verified.cookie.split(';')[0];
+      assert.equal(
+        (await request('/api/quick-entry/verify', 'POST', { code: quickCode }, quickCookie)).status,
+        400,
+      );
+      assert.equal((await request('/api/quick-entry/form', 'GET', null, quickCookie)).status, 200);
+      assert.equal((await request('/api/auth/me', 'GET', null, quickCookie)).data.loggedIn, false);
+      assert.equal(
+        (await request('/api/dashboard?month=2026-09', 'GET', null, quickCookie)).status,
+        401,
+      );
+      const quickTrade = await request(
+        '/api/quick-entry/trades',
+        'POST',
+        {
+          ...body,
+          trade_date: '2026-09-20',
+          strategy_id: null,
+          broker: 'Sahi',
+          fee_mode: 'estimate',
+          exchange: 'NSE',
+          product: 'intraday',
+          brokerage_plan: 'standard',
+          fees: 0,
+          recorded_at: '2099-01-01',
+        },
+        quickCookie,
+      );
+      assert.equal(quickTrade.status, 201, JSON.stringify(quickTrade.data));
+      assert.equal(quickTrade.data.trade.broker, 'Sahi');
+      assert.ok(Number(quickTrade.data.trade.fees) > 0);
+      assert.equal(Number(quickTrade.data.trade.pnl) + Number(quickTrade.data.trade.fees), 1000);
+      assert.ok(new Date(quickTrade.data.trade.recorded_at).getTime() < Date.now() + 1000);
+      assert.equal(
+        (await request(`/api/trades/${quickTrade.data.trade.id}`, 'DELETE', null, quickCookie))
+          .status,
+        401,
+      );
+      assert.equal((await request('/api/quick-entry/end', 'POST', {}, quickCookie)).status, 200);
+      assert.equal(
+        (await request('/api/quick-entry/trades', 'POST', body, quickCookie)).status,
+        401,
+      );
+      const unknown = await request(
+        '/api/quick-entry/request',
+        'POST',
+        { email: 'unregistered-test@example.invalid' },
+        '',
+      );
+      assert.equal(unknown.status, 200);
+      assert.equal(unknown.data.message, quick.data.message);
       await request('/api/auth/logout', 'POST');
       assert.equal((await request('/api/auth/me')).data.loggedIn, false);
     } finally {
       mailer.sendAccountEmail = originalSend;
       await pool.query(
-        "DELETE FROM session WHERE sess::jsonb->>'userId' IN (SELECT id::text FROM users WHERE email=ANY($1))",
+        "DELETE FROM session WHERE (sess::jsonb->>'userId' IN (SELECT id::text FROM users WHERE email=ANY($1)) OR sess::jsonb->'quickEntry'->>'userId' IN (SELECT id::text FROM users WHERE email=ANY($1)))",
         [emails],
       );
       await pool.query('DELETE FROM users WHERE email=ANY($1)', [emails]);

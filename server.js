@@ -121,6 +121,7 @@ app.get(
     res.json({ loggedIn: !!user, user });
   }),
 );
+require('./lib/quick-entry')(app, { pool, email, wrap, fail, saveTrade });
 app.use('/api', auth);
 const monthValue = (v) => {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(v || '')) fail('Select a valid month');
@@ -233,10 +234,15 @@ const fields = [
   'fees',
   'stop_loss',
   'target_price',
+  'broker',
+  'fee_mode',
+  'product',
+  'exchange',
+  'charge_details',
 ];
 async function saveTrade(req, res) {
   const t = trade(req.body),
-    id = req.session.userId;
+    id = req.quickUserId || req.session.userId;
   if (t.strategy_id) {
     const found = await pool.query(
       'SELECT id FROM strategies WHERE id=$1 AND (user_id=$2 OR user_id IS NULL)',
@@ -248,7 +254,7 @@ async function saveTrade(req, res) {
   let result;
   if (req.params.id)
     result = await pool.query(
-      `UPDATE trades SET ${fields.map((k, i) => `${k}=$${i + 1}`).join(',')} WHERE id=$19 AND user_id=$20 RETURNING *`,
+      `UPDATE trades SET ${fields.map((k, i) => `${k}=$${i + 1}`).join(',')} WHERE id=$${fields.length + 1} AND user_id=$${fields.length + 2} RETURNING *`,
       [...values, req.params.id, id],
     );
   else
@@ -264,11 +270,21 @@ app.put('/api/trades/:id', wrap(saveTrade));
 app.delete(
   '/api/trades/:id',
   wrap(async (req, res) => {
-    const r = await pool.query('DELETE FROM trades WHERE id=$1 AND user_id=$2 RETURNING id', [
-      req.params.id,
-      req.session.userId,
-    ]);
-    if (!r.rowCount) return res.status(404).json({ error: 'Trade not found' });
+    const r = await pool.query(
+      "DELETE FROM trades WHERE id=$1 AND user_id=$2 AND recorded_at > now()-interval '6 hours' RETURNING id",
+      [req.params.id, req.session.userId],
+    );
+    if (!r.rowCount) {
+      const exists = await pool.query('SELECT id FROM trades WHERE id=$1 AND user_id=$2', [
+        req.params.id,
+        req.session.userId,
+      ]);
+      return res.status(exists.rowCount ? 409 : 404).json({
+        error: exists.rowCount
+          ? 'Deletion is locked six hours after a trade is added. You can still edit it.'
+          : 'Trade not found',
+      });
+    }
     res.json({ success: true });
   }),
 );
@@ -510,7 +526,7 @@ app.get(
   }),
 );
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
-app.get('/quick-add.html', (req, res) => res.redirect('/?add=1'));
+
 app.use(
   '/vendor/bootstrap-icons',
   express.static(path.join(__dirname, 'node_modules/bootstrap-icons/font')),

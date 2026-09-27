@@ -161,7 +161,7 @@ async function start(demo = false, user) {
   $('#auth').hidden = true;
   $('#app').hidden = false;
   $('#demo-banner').hidden = !demo;
-  $('#session-status').textContent = demo ? 'Sample workspace' : 'Personal workspace';
+  $('#session-status').textContent = demo ? 'Hi, preview trader' : 'Hi, trader';
   $('#load-error').hidden = true;
   if (demo) {
     state.settings = {
@@ -282,9 +282,7 @@ function renderMetrics() {
     [
       'Net profit & loss',
       money(s.net),
-      capital
-        ? `${((s.net / capital) * 100).toFixed(2)}% return on capital`
-        : 'Set capital in Settings to see return',
+      `Gross ${money(s.net + (s.fees || 0), 2)} · Charges ${money(s.fees || 0, 2)}`,
       tone(s.net),
       '↗',
     ],
@@ -317,7 +315,7 @@ function dailyValues() {
   const map = {};
   state.data.monthTrades.forEach((t) => {
     const d = String(t.trade_date).slice(0, 10);
-    map[d] = (map[d] || 0) + Number(t.pnl);
+    map[d] = (Math.round((map[d] || 0) * 100) + Math.round(Number(t.pnl) * 100)) / 100;
   });
   return map;
 }
@@ -411,7 +409,7 @@ function renderCalendar() {
         d = `${month}-${String(day).padStart(2, '0')}`,
         has = Object.hasOwn(values, d),
         v = values[d];
-      return `<button class="calendar-day ${has ? (v >= 0 ? 'has-profit' : 'has-loss') : ''} ${d === today() ? 'today' : ''}" data-day="${d}" aria-label="${d}: ${has ? money(v, 2) : 'No trades'}"><span>${day}</span>${has ? `<b>${compact(v)}</b>` : ''}</button>`;
+      return `<button class="calendar-day ${has ? (v > 0 ? 'has-profit' : v < 0 ? 'has-loss' : '') : ''} ${d === today() ? 'today' : ''}" data-day="${d}" aria-label="${d}: ${has ? money(v, 2) : 'No trades'}"><span>${day}</span>${has ? `<b>${compact(v)}</b>` : ''}</button>`;
     }).join('');
 }
 function challengeCard(c, featured = false) {
@@ -450,7 +448,7 @@ function renderChallenges() {
 function table(trades) {
   if (!trades.length)
     return '<div class="empty"><strong>No trades to show.</strong>Log a trade or adjust your month and filters.</div>';
-  return `<div class="table-wrap"><table><thead><tr><th>INSTRUMENT</th><th>DATE</th><th>STRATEGY</th><th>POSITION</th><th>NET P&L</th><th>DETAILS</th></tr></thead><tbody>${trades.map((t) => `<tr><td class="symbol">${esc(t.symbol)}<small><span class="type-badge">${esc(t.instrument_type)}</span></small></td><td>${new Date(String(t.trade_date).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}<small>${esc(t.entry_time?.slice(0, 5) || '—')} IST</small></td><td>${esc(t.strategy_name || 'Unassigned')}</td><td>${esc(t.side || 'Long')}<small>${+t.quantity * (+t.lot_size || 1)} units · ${money(t.entry_price, 2)} → ${money(t.exit_price, 2)}</small></td><td class="pnl-cell ${tone(+t.pnl)}">${money(t.pnl, 2)}<small>Fees ${money(t.fees || 0, 2)}</small></td><td><button class="table-action" data-edit="${t.id}" aria-label="Edit ${esc(t.symbol)} trade">Edit ↗</button>${state.page === 'trades' ? `<button class="table-action negative" data-delete="${t.id}" aria-label="Delete ${esc(t.symbol)} trade">Delete</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>INSTRUMENT</th><th>DATE</th><th>STRATEGY</th><th>POSITION</th><th>NET P&L</th><th>DETAILS</th></tr></thead><tbody>${trades.map((t) => `<tr><td class="symbol">${esc(t.symbol)}<small><span class="type-badge">${esc(t.instrument_type)}</span></small></td><td>${new Date(String(t.trade_date).slice(0, 10) + 'T12:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}<small>${esc(t.entry_time?.slice(0, 5) || '—')} IST</small></td><td>${esc(t.strategy_name || 'Unassigned')}</td><td>${esc(t.side || 'Long')}<small>${+t.quantity * (+t.lot_size || 1)} units · ${money(t.entry_price, 2)} → ${money(t.exit_price, 2)}</small></td><td class="pnl-cell ${tone(+t.pnl)}">${money(t.pnl, 2)}<small>Gross ${money(+t.pnl + +(t.fees || 0), 2)}</small><small>Charges ${money(t.fees || 0, 2)}</small></td><td><button class="table-action" data-view="${t.id}">View</button><button class="table-action" data-edit="${t.id}" aria-label="Edit ${esc(t.symbol)} trade">Edit ↗</button>${state.page === 'trades' ? `<button class="table-action negative" data-delete="${t.id}" ${canDeleteTrade(t) ? '' : 'disabled title="Deletion locks six hours after adding a trade"'} aria-label="Delete ${esc(t.symbol)} trade">Delete</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function renderTrades() {
   const trades = state.data.monthTrades;
@@ -478,15 +476,25 @@ function renderReport() {
   $('#report-month').textContent = monthName();
   $('#report-net').textContent = money(s.net, 2);
   $('#report-stats').innerHTML =
-    `<span>${s.count} trades</span><span>${s.winRate.toFixed(1)}% win rate</span>`;
+    `<span>Gross ${money(s.net + (s.fees || 0), 2)}</span><span>Charges ${money(s.fees || 0, 2)}</span><span>Net ${money(s.net, 2)}</span><span>${s.count} trades</span>`;
 }
 function renderSettings() {
   const s = state.settings,
     form = $('#settings-form'),
     name = s.display_name || state.user.email.split('@')[0];
+  $('#session-status').textContent = `Hi, ${name}`;
   $('#profile-name').textContent = name;
   $('#profile-email').textContent = state.user.email;
-  $('#avatar').textContent = $('#top-avatar').textContent = name.slice(0, 2).toUpperCase();
+  $('#avatar').textContent = $('#top-avatar').textContent = (
+    name.trim().split(/\s+/).length > 1
+      ? name
+          .trim()
+          .split(/\s+/)
+          .map((n) => n[0])
+          .slice(0, 2)
+          .join('')
+      : name.slice(0, 2)
+  ).toUpperCase();
   $('#settings-email').value = state.user.email;
   for (const k of ['display_name', 'default_lot_size', 'risk_per_trade'])
     form.elements[k].value = s[k] ?? '';
@@ -501,7 +509,7 @@ function renderSettings() {
   $('#strategy-list').innerHTML = state.strategies
     .map(
       (s) =>
-        `<div class="strategy-row"><span><strong>${esc(s.name)}</strong>${s.description ? `<p class="strategy-description">${esc(s.description)}</p>` : ''}</span>${s.user_id ? `<button class="icon-button" data-delete-strategy="${s.id}" aria-label="Delete ${esc(s.name)}"><i class="bi bi-x-lg" aria-hidden="true"></i></button>` : '<small>BUILT-IN</small>'}</div>`,
+        `<details class="strategy-accordion"><summary><strong>${esc(s.name)}</strong><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div><p class="strategy-description">${esc(s.description || 'No description added.')}</p>${s.user_id ? `<button class="secondary negative" data-delete-strategy="${s.id}">Delete strategy</button>` : '<small>Built-in strategy</small>'}</div></details>`,
     )
     .join('');
   $('#trade-strategy').innerHTML =
@@ -516,6 +524,7 @@ function previewGuard() {
 function openTrade(id) {
   const form = $('#trade-form');
   form.reset();
+  form.elements.broker.value = 'Other';
   state.editing = id || null;
   $('#trade-title').textContent = id ? 'Review & edit trade' : 'Log a trade';
   $('#trade-error').textContent = '';
@@ -525,6 +534,7 @@ function openTrade(id) {
   if (id) {
     const t = state.data.monthTrades.find((t) => +t.id === +id);
     if (!t) return;
+    Object.assign(t, t.charge_details?.inputs || {});
     for (const el of form.elements) {
       if (el.name && t[el.name] != null)
         el.value = ['trade_date', 'expiry_date'].includes(el.name)
@@ -536,13 +546,14 @@ function openTrade(id) {
   $('#trade-dialog').showModal();
 }
 function updatePreview() {
+  const quote = ChargeForm.update($('#trade-form'));
   const f = $('#trade-form'),
     v = (k) => +f.elements[k].value || 0,
     units = v('quantity') * v('lot_size'),
     pnl =
       (v('exit_price') - v('entry_price')) * (f.elements.side.value === 'Short' ? -1 : 1) * units -
       v('fees');
-  $('#trade-preview').textContent = money(pnl, 2);
+  $('#trade-preview').textContent = quote ? money(pnl, 2) : '—';
   $('#trade-preview').className = tone(pnl);
   const risk =
     f.elements.stop_loss.value !== ''
@@ -635,11 +646,12 @@ document.addEventListener('keydown', (e) => {
     $('#account-toggle').focus();
   }
 });
-for (const id of ['theme-select', 'settings-theme']) {
+for (const id of ['theme-select', 'settings-theme', 'header-theme']) {
   $('#' + id).value = window.journalTheme.preference;
   $('#' + id).onchange = (e) => {
     window.journalTheme.set(e.target.value);
-    for (const other of ['theme-select', 'settings-theme']) $('#' + other).value = e.target.value;
+    for (const other of ['theme-select', 'settings-theme', 'header-theme'])
+      $('#' + other).value = e.target.value;
   };
 }
 $('#month').value = today().slice(0, 7);
@@ -691,10 +703,19 @@ document.addEventListener('click', (e) => {
   }
   const close = e.target.closest('.close-dialog');
   if (close) close.closest('dialog').close();
+  const view = e.target.closest('[data-view]');
+  if (view) viewTrade(+view.dataset.view);
   const edit = e.target.closest('[data-edit]');
   if (edit) openTrade(+edit.dataset.edit);
   const del = e.target.closest('[data-delete]');
-  if (del) removeItem('trades', del.dataset.delete);
+  if (del && !del.disabled) {
+    const t = state.data.monthTrades.find((t) => +t.id === +del.dataset.delete);
+    if (t && canDeleteTrade(t)) removeItem('trades', del.dataset.delete);
+    else {
+      renderTrades();
+      toast('Deletion is locked after six hours.');
+    }
+  }
   const detail = e.target.closest('[data-challenge-detail]');
   if (detail) openChallengeDetails(detail.dataset.challengeDetail);
   const editChallenge = e.target.closest('[data-edit-challenge]');
@@ -753,11 +774,13 @@ $('#clear-filters').onclick = () => {
 };
 $('#add-trade').onclick = () => openTrade();
 $('#add-challenge').onclick = () => openChallenge();
+ChargeForm.mount($('#trade-form'));
 $('#trade-form').oninput = updatePreview;
 $('#trade-form').onsubmit = async (e) => {
   e.preventDefault();
   if (previewGuard()) return;
   const f = e.currentTarget;
+  if (!ChargeForm.update(f)) return;
   busy(f, true);
   $('#trade-error').textContent = '';
   try {
@@ -948,7 +971,7 @@ async function openChallengeDetails(id) {
     $('#challenge-detail-period').textContent =
       `${c.start_date} — ${c.end_date} · Target ${money(c.target)}${c.edited_at ? ' · Edit locked' : ''}`;
     $('#challenge-detail-summary').innerHTML =
-      `<div><small>Net P&L</small><strong class="${tone(stats.net)}">${money(stats.net, 2)}</strong></div><div><small>Winning trades</small><strong>${stats.wins}</strong></div><div><small>Losing trades</small><strong>${stats.losses}</strong></div><div><small>Remaining target</small><strong>${money(Math.max(0, c.target - stats.net), 2)}</strong></div>`;
+      `<div><small>Net P&L</small><strong class="${tone(stats.net)}">${money(stats.net, 2)}</strong></div><div><small>Gross P&L</small><strong>${money(stats.net + (stats.fees || 0), 2)}</strong></div><div><small>Charges</small><strong>${money(stats.fees || 0, 2)}</strong></div><div><small>Losing trades</small><strong>${stats.losses}</strong></div><div><small>Remaining target</small><strong>${money(Math.max(0, c.target - stats.net), 2)}</strong></div>`;
     const byDay = {};
     for (const t of trades) {
       const day = String(t.trade_date).slice(0, 10);
@@ -964,10 +987,10 @@ async function openChallengeDetails(id) {
     ) {
       const key = d.toISOString().slice(0, 10),
         dayTrades = byDay[key] || [],
-        net = dayTrades.reduce((a, t) => a + Number(t.pnl), 0);
-      running += net;
+        net = dayTrades.reduce((a, t) => a + Math.round(Number(t.pnl) * 100), 0) / 100;
+      running = (Math.round(running * 100) + Math.round(net * 100)) / 100;
       rows.push(
-        `<details class="daily-detail"><summary><span>${esc(key)}<small>${dayTrades.length} ${dayTrades.length === 1 ? 'trade' : 'trades'}</small></span><span class="${tone(net)}">${money(net, 2)}<small>Daily net</small></span><span class="${tone(running)}">${money(running, 2)}<small>Running total</small></span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="daily-trade-list">${dayTrades.length ? dayTrades.map((t) => `<div class="day-item"><div><strong>${esc(t.symbol)}</strong><p>${esc(t.side || 'Long')} · ${esc(t.strategy_name || 'Unassigned')}</p><small>${t.quantity * (t.lot_size || 1)} units · Entry ${money(t.entry_price, 2)} · Exit ${money(t.exit_price, 2)} · Fees ${money(t.fees || 0, 2)}</small></div><strong class="${tone(+t.pnl)}">${money(t.pnl, 2)}</strong></div>`).join('') : '<p>No trades recorded for this day.</p>'}</div></details>`,
+        `<details class="daily-detail"><summary><span>${esc(key)}<small>${dayTrades.length} ${dayTrades.length === 1 ? 'trade' : 'trades'}</small></span><span class="${tone(net)}">${money(net, 2)}<small>Daily net · Gross ${money(net + dayTrades.reduce((a, t) => a + Number(t.fees || 0), 0), 2)}</small></span><span class="${tone(running)}">${money(running, 2)}<small>Running total</small></span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary><div class="daily-trade-list">${dayTrades.length ? dayTrades.map((t) => `<div class="day-item"><div><strong>${esc(t.symbol)}</strong><p>${esc(t.side || 'Long')} · ${esc(t.strategy_name || 'Unassigned')}</p><small>${t.quantity * (t.lot_size || 1)} units · Entry ${money(t.entry_price, 2)} · Exit ${money(t.exit_price, 2)} · Gross ${money(+t.pnl + +(t.fees || 0), 2)} · Charges ${money(t.fees || 0, 2)}</small></div><strong class="${tone(+t.pnl)}">${money(t.pnl, 2)}</strong></div>`).join('') : '<p>No trades recorded for this day.</p>'}</div></details>`,
       );
     }
     $('#challenge-daily').innerHTML = rows.length
@@ -1036,4 +1059,70 @@ window.addEventListener('popstate', () => {
 });
 window.addEventListener('resize', () => {
   if (state.user && state.page === 'dashboard') renderChart();
+});
+
+function canDeleteTrade(t) {
+  return !!t.recorded_at && Date.now() < new Date(t.recorded_at).getTime() + 6 * 3600000;
+}
+setInterval(() => {
+  if (state.page === 'trades' && state.data.monthTrades.length) renderTrades();
+}, 30000);
+function viewTrade(id) {
+  const t = state.data.monthTrades.find((t) => +t.id === id);
+  if (!t) return;
+  const info = {
+    Symbol: t.symbol,
+    Date: String(t.trade_date).slice(0, 10),
+    Instrument: t.instrument_type,
+    Direction: t.side || 'Long',
+    Broker: t.broker || 'Not recorded',
+    Exchange: t.exchange || 'Not recorded',
+    Strategy: t.strategy_name || 'Unassigned',
+    'Entry price': money(t.entry_price, 2),
+    'Exit price': money(t.exit_price, 2),
+    Units: +t.quantity * (+t.lot_size || 1),
+    'Gross P&L': money(+t.pnl + +(t.fees || 0), 2),
+    'Total charges': money(t.fees || 0, 2),
+    'Net P&L': money(t.pnl, 2),
+    'Charges method': t.fee_mode || 'manual',
+    'Expiry date': t.expiry_date ? String(t.expiry_date).slice(0, 10) : '—',
+    'Entry / exit (IST)': `${t.entry_time || '—'} / ${t.exit_time || '—'}`,
+    'Stop loss': t.stop_loss ?? '—',
+    Target: t.target_price ?? '—',
+    Notes: t.notes || 'No notes added',
+    Deletion: canDeleteTrade(t)
+      ? `Available until ${new Date(new Date(t.recorded_at).getTime() + 6 * 3600000).toLocaleString()}`
+      : 'Locked (six-hour window ended or legacy entry)',
+  };
+  $('#view-trade-body').innerHTML = `<dl class="trade-details">${Object.entries(info)
+    .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(String(v))}</dd></div>`)
+    .join('')}</dl><h3>Saved charges breakdown</h3>${Object.entries(
+    t.charge_details?.items || { 'Actual / manual total': t.fees || 0 },
+  )
+    .map(([k, v]) => `<div class="charge-line"><span>${esc(k)}</span><b>${money(v, 2)}</b></div>`)
+    .join('')}`;
+  $('#view-trade-dialog').showModal();
+}
+$('#header-theme').value = window.journalTheme.preference;
+$('#header-theme').onchange = (e) => {
+  window.journalTheme.set(e.target.value);
+  $('#theme-select').value = $('#settings-theme').value = e.target.value;
+};
+$('#appearance-toggle').onclick = () => {
+  const panel = $('#appearance-panel');
+  panel.hidden = !panel.hidden;
+  $('#header-theme').value = window.journalTheme.preference;
+  $('#appearance-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+};
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.appearance-menu')) {
+    $('#appearance-panel').hidden = true;
+    $('#appearance-toggle').setAttribute('aria-expanded', 'false');
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    $('#appearance-panel').hidden = true;
+    $('#appearance-toggle').setAttribute('aria-expanded', 'false');
+  }
 });
