@@ -6,19 +6,19 @@ window.ChargeForm = {
     container.innerHTML = `<div class="form-divider">BROKER & CHARGES</div>
     <div class="form-row"><label>Broker<select name="broker">${TradeCharges.brokers.map((b) => `<option>${b}</option>`).join('')}</select></label>
     <label>Charges method<select name="fee_mode"><option value="estimate">Calculate estimate</option><option value="manual">Actual / manual total</option></select></label></div>
-    <div class="estimate-fields"><div class="form-row three">
+    <div class="estimate-fields"><div class="form-row execution-charges">
     <label>Exchange<select name="exchange"><option>NSE</option><option>MCX</option><option>BSE</option><option>Other</option></select></label>
     <label>Equity product<select name="product"><option value="intraday">Intraday</option><option value="delivery">Delivery</option></select></label>
-    <label>Commodity contract<select name="commodity_type"><option value="futures">Non-agri futures</option><option value="options">Options</option></select></label></div>
+    <label>Executed orders (entry + exit)<input name="order_count" type="number" min="2" max="1000" step="1" value="2" required></label><label>Commodity contract<select name="commodity_type"><option value="futures">Non-agri futures</option><option value="options">Options</option></select></label></div>
     <div class="form-row"><label>Brokerage plan<select name="brokerage_plan"><option value="standard">Published standard plan</option><option value="custom">My plan — enter total brokerage</option></select></label>
-    <label>Executed orders (entry + exit)<input name="order_count" type="number" min="2" max="1000" step="1" value="2" required></label></div>
+    </div>
     <div class="form-row three"><label>Custom brokerage, before GST (₹)<input name="brokerage_override" type="number" min="0" step="0.01" placeholder="Required for custom plan"></label>
     <label>Other broker: per order (₹)<input name="per_order" type="number" min="0" step="0.01" value="20"></label>
     <label>Allocated DP fee, before GST (₹)<input name="dp_charge" type="number" min="0" step="0.01" placeholder="Delivery only"></label></div>
     <p class="fine">For delivery, allocate the DP fee from your broker’s tariff once per applicable debit; enter 0 if already allocated. ICICI delivery requires your plan’s total brokerage. Multiple executed orders, promotional plans and special settlements may need actual charges.</p>
     <p class="fine">Estimates use schedules reviewed 26 Sep 2026, for trades from Sep 2026 onward. <a class="charge-source" target="_blank" rel="noopener">Broker schedule</a> · <a href="/charge-rates.html" target="_blank" rel="noopener">Rates & assumptions</a></p></div>
     <div class="charge-breakdown" aria-live="polite"></div><p class="charge-error negative" role="alert"></p>`;
-    form.querySelector('.pnl-preview').before(container);
+    form.querySelector('.risk-summary, .pnl-preview').before(container);
     form.elements.broker.value = 'Other';
     return container;
   },

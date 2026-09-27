@@ -3253,3 +3253,672 @@ button:disabled {
   font-size: 12px;
   text-decoration: underline;
 }
+
+/* Workspace navigation and shared reporting period. */
+.topbar {
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+}
+.topbar .breadcrumb {
+  flex: 1;
+}
+.global-month {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.global-month > .bi {
+  font-size: 20px;
+  color: var(--mint);
+}
+.global-month small {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.global-month input {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 3px 0 0;
+  min-height: 26px;
+  height: auto;
+  font-weight: 700;
+  width: 168px;
+}
+#sidebar-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+}
+#sidebar-toggle .bi {
+  font-size: 22px;
+}
+.trade-fab {
+  position: fixed;
+  right: 0;
+  bottom: 100px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px 0 0 16px;
+  padding: 17px 19px;
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: 0 8px 30px #0003;
+  border: 0;
+}
+.trade-fab .bi {
+  font-size: 25px;
+}
+.trade-fab span {
+  font-size: 14px;
+  font-weight: 700;
+}
+.account-dropdown {
+  width: 280px;
+  padding: 8px;
+  border-radius: 14px;
+  box-shadow: 0 18px 60px #0004;
+}
+.account-details {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+.account-details > div {
+  min-width: 0;
+}
+.account-details small {
+  overflow-wrap: anywhere;
+}
+.account-details .avatar {
+  flex-shrink: 0;
+}
+.account-dropdown button,
+.account-dropdown .menu-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 12px;
+  text-align: left;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+.account-dropdown button .bi,
+.account-dropdown .menu-link .bi {
+  color: var(--mint);
+  font-size: 18px;
+}
+.account-dropdown .menu-link:hover {
+  background: var(--palette-15222d);
+}
+#logout {
+  justify-content: center;
+  border: 1px solid #cf647955;
+  color: var(--red);
+  margin-top: 10px;
+  background: #cf647911;
+}
+#logout .bi {
+  color: inherit;
+}
+.account-dropdown .theme-control {
+  padding: 12px;
+  font-size: 12px;
+}
+@media (min-width: 851px) {
+  body.sidebar-collapsed .sidebar {
+    width: 76px;
+    padding-inline: 10px;
+  }
+  body.sidebar-collapsed .sidebar .brand > span,
+  body.sidebar-collapsed .workspace-label,
+  body.sidebar-collapsed .nav-item > span:not(.nav-icon),
+  body.sidebar-collapsed .profile > div:not(.avatar) {
+    display: none;
+  }
+  body.sidebar-collapsed .sidebar nav {
+    margin-top: 38px;
+  }
+  body.sidebar-collapsed .nav-item {
+    justify-content: center;
+    padding: 15px 0;
+  }
+  body.sidebar-collapsed .main-shell {
+    margin-left: 76px;
+  }
+  body.sidebar-collapsed .workspace-footer {
+    left: 76px;
+  }
+  body.sidebar-collapsed .profile {
+    justify-content: center;
+    padding-inline: 0;
+  }
+}
+/* A fixed shell keeps P&L and save controls visible while only fields scroll. */
+#trade-dialog.trade-drawer {
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(640px, 100%);
+  height: 100dvh;
+  max-height: 100dvh;
+  max-width: 100%;
+  border-radius: 20px 0 0 20px;
+  border-right: 0;
+  overflow: hidden;
+}
+#trade-dialog::backdrop {
+  backdrop-filter: none;
+  background: #030c1370;
+}
+#trade-form {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#trade-form > .dialog-heading {
+  flex-shrink: 0;
+  gap: 15px;
+  padding: 24px;
+  background: var(--panel);
+}
+#trade-form > .dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+  overscroll-behavior: contain;
+}
+#trade-form > .dialog-footer {
+  flex-shrink: 0;
+  position: static;
+  padding: 18px 24px;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+.drawer-pnl {
+  margin-left: auto;
+  text-align: right;
+  max-width: 240px;
+}
+.drawer-pnl small {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.drawer-pnl strong {
+  display: block;
+  font-size: 26px;
+  font-weight: 800;
+  margin: 4px 0;
+}
+.drawer-pnl > span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+#trade-form .dialog-heading .eyebrow {
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+#trade-form .dialog-heading h2 {
+  font-size: 22px;
+  white-space: nowrap;
+}
+#trade-form .dialog-heading .close-dialog {
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+.risk-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.risk-summary small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.execution-charges {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#trade-form .charge-totals {
+  display: none;
+}
+/* Readable hierarchy for saved trades. */
+#view-trade-dialog {
+  width: min(760px, calc(100% - 24px));
+}
+.trade-identity h3 {
+  font-size: 28px;
+  margin: 12px 0 6px;
+}
+.trade-identity p {
+  color: var(--muted);
+  margin: 0 0 22px;
+}
+.trade-result-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 12px;
+}
+.trade-result-grid > div {
+  padding: 20px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.trade-result-grid small {
+  font-size: 12px;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+  display: block;
+}
+.trade-result-grid strong {
+  display: block;
+  font-size: 23px;
+  margin: 10px 0;
+  font-weight: 800;
+}
+.trade-result-grid span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.trade-result-grid .net-result {
+  background: linear-gradient(135deg, #6b93e51c, transparent);
+  border-color: #6b93e566;
+}
+.trade-result-grid .net-result.positive {
+  background: #18976016;
+  border-color: #18976066;
+}
+.trade-result-grid .net-result.negative {
+  background: #db44581a;
+  border-color: #db445866;
+}
+.trade-result-grid .charges-result {
+  background: #dba34513;
+  border-color: #dba34555;
+}
+.charges-result strong {
+  color: var(--text);
+}
+.detail-section {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.detail-section h3 {
+  font-size: 16px;
+  margin-bottom: 18px;
+  font-weight: 750;
+}
+.trade-details {
+  gap: 22px;
+}
+.trade-details dt {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  opacity: 1;
+}
+.trade-details dd {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.trade-note {
+  padding: 16px;
+  background: var(--panel);
+  border-radius: 10px;
+  margin-top: 20px;
+}
+.trade-note small {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.7px;
+}
+.trade-note p {
+  white-space: pre-wrap;
+  margin: 8px 0 0;
+  line-height: 1.7;
+}
+.charges-section h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.charges-section h3 span {
+  color: var(--mint);
+}
+.deletion-note {
+  font-size: 12px;
+  color: var(--muted);
+  padding-top: 20px;
+  line-height: 1.5;
+}
+#toast {
+  inset: auto 24px 88px auto;
+  margin: 0;
+  max-width: min(440px, calc(100vw - 32px));
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 18px 22px;
+  border: 1px solid #18976070;
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #0004;
+  font-size: 14px;
+  line-height: 1.5;
+}
+#toast .bi {
+  font-size: 22px;
+  color: var(--green);
+}
+#toast[data-type='error'] {
+  border-color: #db445888;
+}
+#toast[data-type='error'] .bi {
+  color: var(--red);
+}
+@media (min-width: 641px) and (max-width: 850px) {
+  body.sidebar-collapsed .sidebar {
+    display: none;
+  }
+  body.sidebar-collapsed .main-shell {
+    margin-left: 0;
+  }
+  body.sidebar-collapsed .workspace-footer {
+    left: 0;
+  }
+  .global-month small {
+    display: none;
+  }
+  .header-greeting {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .topbar .breadcrumb {
+    flex: 1;
+    font-size: 12px;
+  }
+  .global-month {
+    order: 5;
+    width: 100%;
+    justify-content: center;
+    padding: 8px;
+    gap: 12px;
+  }
+  .global-month small {
+    display: none;
+  }
+  .global-month input {
+    width: 180px;
+    font-size: 15px;
+  }
+  .header-greeting {
+    max-width: 88px;
+  }
+  .trade-fab {
+    bottom: 156px;
+    padding: 15px;
+    border-radius: 14px 0 0 14px;
+  }
+  .trade-fab span {
+    display: none;
+  }
+  body.sidebar-collapsed .sidebar {
+    display: none;
+  }
+  body.sidebar-collapsed .workspace-footer {
+    bottom: 0;
+  }
+  body.sidebar-collapsed .trade-fab {
+    bottom: 90px;
+  }
+  #trade-dialog.trade-drawer {
+    border-radius: 0;
+    border: 0;
+  }
+  #trade-form > .dialog-heading {
+    padding: 16px;
+    gap: 8px;
+  }
+  #trade-form .dialog-heading h2 {
+    font-size: 18px;
+  }
+  #trade-form .dialog-heading .eyebrow {
+    display: none;
+  }
+  .drawer-pnl strong {
+    font-size: 22px;
+  }
+  .drawer-pnl {
+    max-width: 175px;
+  }
+  #trade-form > .dialog-body {
+    padding: 18px;
+  }
+  .execution-charges {
+    grid-template-columns: 1fr 1fr;
+  }
+  .trade-result-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .trade-result-grid .net-result {
+    grid-column: 1/-1;
+  }
+  .trade-result-grid strong {
+    font-size: 22px;
+  }
+  .trade-details {
+    grid-template-columns: 1fr 1fr;
+  }
+  #toast {
+    inset: auto 16px 150px 16px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  #trade-dialog[open] {
+    animation: drawer-enter 0.2s ease-out;
+  }
+  @keyframes drawer-enter {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+}
+@media (max-width: 640px) {
+  .topbar {
+    height: auto;
+    min-height: 108px;
+  }
+  .quick-page #toast {
+    bottom: 24px;
+  }
+}
+
+/* Settings cards follow their content, with independent trading/account stacks. */
+#view-settings .settings-grid {
+  align-items: start;
+  gap: 24px;
+}
+#view-settings .panel {
+  padding: 26px;
+  min-width: 0;
+}
+#view-settings .panel-heading {
+  margin-bottom: 24px;
+  align-items: flex-start;
+}
+#view-settings h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 17px;
+  line-height: 1.5;
+}
+#view-settings h2 > .bi {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #7599e81a;
+  color: var(--mint);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+#view-settings .panel-heading p {
+  margin-top: 8px;
+  line-height: 1.6;
+}
+#view-settings .save-row {
+  margin: 18px 0 28px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.settings-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.settings-stack {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+#view-settings .email-account-panel {
+  margin: 0;
+}
+#view-settings .email-account-panel .panel-heading {
+  flex-wrap: wrap;
+  gap: 16px;
+}
+#view-settings .email-account-panel .form-row {
+  grid-template-columns: 1fr;
+}
+#view-settings .delivery-status {
+  padding: 14px;
+  border-radius: 10px;
+  background: #7599e80d;
+  border: 1px solid var(--line);
+  line-height: 1.6;
+}
+#view-settings .toggle-row {
+  gap: 16px;
+  align-items: center;
+}
+#view-settings .toggle-row small {
+  line-height: 1.7;
+  margin-top: 8px;
+}
+#view-settings .strategy-accordion {
+  padding: 18px 0;
+}
+#view-settings .strategy-accordion summary {
+  align-items: center;
+  line-height: 1.6;
+}
+.new-strategy {
+  margin-top: 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.new-strategy > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+  padding: 18px;
+  color: var(--mint);
+}
+.new-strategy > summary .bi {
+  font-size: 18px;
+}
+#view-settings .new-strategy .strategy-form {
+  padding: 0 18px 18px;
+  margin-top: 0;
+}
+#view-settings .fine {
+  line-height: 1.7;
+}
+@media (max-width: 1000px) {
+  .settings-workbench {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  #view-settings .panel {
+    padding: 20px;
+  }
+  #view-settings .settings-grid,
+  .settings-workbench,
+  .settings-stack {
+    gap: 18px;
+  }
+  #view-settings .save-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #view-settings .save-row button {
+    width: 100%;
+  }
+  #view-settings h2 {
+    font-size: 16px;
+  }
+}
+/* Override the earlier centred toast positioning for the anchored notification layout. */
+#toast {
+  transform: none;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  #toast {
+    width: auto;
+    max-width: calc(100vw - 32px);
+  }
+}

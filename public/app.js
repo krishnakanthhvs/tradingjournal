@@ -34,12 +34,20 @@ let state = {
   loadVersion: 0,
 };
 let toastTimer;
-function toast(message) {
-  $('#toast').textContent = message;
-  $('#toast').hidden = false;
+function toast(message, type = 'success') {
+  const el = $('#toast');
+  el.innerHTML = `<i class="bi bi-${type === 'error' ? 'exclamation-circle' : 'check-circle'}" aria-hidden="true"></i><span>${esc(message)}</span>`;
+  el.dataset.type = type;
+  el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  el.hidden = false;
+  if (el.showPopover && !el.matches(':popover-open')) el.showPopover();
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => ($('#toast').hidden = true), 4500);
+  toastTimer = setTimeout(() => {
+    if (el.hidePopover && el.matches(':popover-open')) el.hidePopover();
+    el.hidden = true;
+  }, 5500);
 }
+
 async function api(url, method = 'GET', body) {
   const r = await fetch(url, {
     method,
@@ -185,6 +193,7 @@ async function start(demo = false, user) {
     } catch (e) {
       $('#load-error').textContent = e.message;
       $('#load-error').hidden = false;
+      toast(e.message, 'error');
     }
   }
   renderSettings();
@@ -194,6 +203,9 @@ async function start(demo = false, user) {
 }
 async function refresh() {
   const version = ++state.loadVersion;
+  try {
+    localStorage.setItem('journal-month', $('#month').value);
+  } catch {}
   $('#load-error').hidden = true;
   try {
     if (state.demo) makeDemo();
@@ -212,6 +224,7 @@ async function refresh() {
     if (version !== state.loadVersion) return;
     $('#load-error').textContent = e.message + ' Refresh the page to retry.';
     $('#load-error').hidden = false;
+    toast(e.message, 'error');
   }
 }
 const pages = {
@@ -504,6 +517,7 @@ function renderSettings() {
     : s.emailConfigured
       ? `Delivery ready · Checked hourly after Monday 00:00 IST.${s.lastEmail ? ' Last sent: ' + new Date(s.lastEmail).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' : ''}`
       : 'Email delivery is not configured yet. Your preference can be saved; the server needs an email provider key and verified sender.';
+  $('#menu-avatar').textContent = $('#top-avatar').textContent;
   $('#menu-name').textContent = name;
   $('#menu-email').textContent = state.user.email;
   $('#strategy-list').innerHTML = state.strategies
@@ -518,7 +532,7 @@ function renderSettings() {
 }
 function previewGuard() {
   if (!state.demo) return false;
-  toast('Sign in to save changes to your own journal.');
+  toast('Sign in to save changes to your own journal.', 'error');
   return true;
 }
 function openTrade(id) {
@@ -544,6 +558,7 @@ function openTrade(id) {
   }
   updatePreview();
   $('#trade-dialog').showModal();
+  $('#trade-dialog .dialog-body').scrollTop = 0;
 }
 function updatePreview() {
   const quote = ChargeForm.update($('#trade-form'));
@@ -554,7 +569,10 @@ function updatePreview() {
       (v('exit_price') - v('entry_price')) * (f.elements.side.value === 'Short' ? -1 : 1) * units -
       v('fees');
   $('#trade-preview').textContent = quote ? money(pnl, 2) : '—';
-  $('#trade-preview').className = tone(pnl);
+  $('#trade-preview').className = quote ? tone(pnl) : 'neutral';
+  $('#header-charges').textContent = quote
+    ? `Gross ${money(quote.gross, 2)} · Charges ${money(quote.total, 2)}`
+    : 'Enter valid trade details';
   const risk =
     f.elements.stop_loss.value !== ''
       ? Math.abs(v('entry_price') - v('stop_loss')) * units + v('fees')
@@ -577,7 +595,7 @@ function openChallenge(id = null) {
   editingChallenge = id;
   const c = id ? state.challenges.find((c) => Number(c.id) === Number(id)) : null;
   if (id && (!c || c.edited_at)) {
-    toast('This challenge is locked.');
+    toast('This challenge is locked.', 'error');
     return;
   }
   if (c) {
@@ -621,6 +639,7 @@ $('#confirm-delete').onclick = async () => {
     toast('Deleted successfully.');
   } catch (e) {
     $('#delete-error').textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     $('#confirm-delete').disabled = false;
   }
@@ -650,11 +669,18 @@ for (const id of ['theme-select', 'settings-theme', 'header-theme']) {
   $('#' + id).value = window.journalTheme.preference;
   $('#' + id).onchange = (e) => {
     window.journalTheme.set(e.target.value);
+    toast('Appearance saved on this device.');
     for (const other of ['theme-select', 'settings-theme', 'header-theme'])
       $('#' + other).value = e.target.value;
   };
 }
-$('#month').value = today().slice(0, 7);
+let savedMonth;
+try {
+  savedMonth = localStorage.getItem('journal-month');
+} catch {}
+$('#month').value = /^\d{4}-(0[1-9]|1[0-2])$/.test(savedMonth || '')
+  ? savedMonth
+  : today().slice(0, 7);
 $('#auth-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.currentTarget;
@@ -665,6 +691,7 @@ $('#auth-form').addEventListener('submit', async (e) => {
     await start(false, r.user);
   } catch (e) {
     $('#auth-error').textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     busy(f, false);
   }
@@ -691,8 +718,9 @@ $('#logout').onclick = async () => {
   try {
     await api('/api/auth/logout', 'POST');
     showAuth();
+    toast('Signed out successfully.');
   } catch (e) {
-    toast(e.message);
+    toast(e.message, 'error');
   }
 };
 document.addEventListener('click', (e) => {
@@ -700,6 +728,7 @@ document.addEventListener('click', (e) => {
   if (page) {
     navigate(page.dataset.page);
     renderTrades();
+    if (page.dataset.settingsFocus) document.getElementById(page.dataset.settingsFocus)?.focus();
   }
   const close = e.target.closest('.close-dialog');
   if (close) close.closest('dialog').close();
@@ -713,7 +742,7 @@ document.addEventListener('click', (e) => {
     if (t && canDeleteTrade(t)) removeItem('trades', del.dataset.delete);
     else {
       renderTrades();
-      toast('Deletion is locked after six hours.');
+      toast('Deletion is locked after six hours.', 'error');
     }
   }
   const detail = e.target.closest('[data-challenge-detail]');
@@ -780,7 +809,13 @@ $('#trade-form').onsubmit = async (e) => {
   e.preventDefault();
   if (previewGuard()) return;
   const f = e.currentTarget;
-  if (!ChargeForm.update(f)) return;
+  if (!ChargeForm.update(f)) {
+    toast(
+      f.querySelector('.charge-error').textContent || 'Complete the trade prices first.',
+      'error',
+    );
+    return;
+  }
   busy(f, true);
   $('#trade-error').textContent = '';
   try {
@@ -790,12 +825,18 @@ $('#trade-form').onsubmit = async (e) => {
       state.editing ? 'PUT' : 'POST',
       data,
     );
-    $('#month').value = data.trade_date.slice(0, 7);
+
     $('#trade-dialog').close();
     await refresh();
-    toast(state.editing ? 'Trade updated.' : 'Trade added to your journal.');
+    toast(
+      (state.editing ? 'Trade updated.' : 'Trade added to your journal.') +
+        (data.trade_date.slice(0, 7) !== $('#month').value
+          ? ` Saved in ${data.trade_date.slice(0, 7)}; your workspace period is unchanged.`
+          : ''),
+    );
   } catch (e) {
     $('#trade-error').textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     busy(f, false);
   }
@@ -822,6 +863,7 @@ $('#challenge-form').onsubmit = async (e) => {
     toast(editingChallenge ? 'Challenge updated and locked.' : 'Your challenge is ready.');
   } catch (e) {
     $('#challenge-error').textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     busy(f, false);
   }
@@ -841,7 +883,7 @@ $('#settings-form').onsubmit = async (e) => {
 
     toast('Preferences saved.');
   } catch (e) {
-    toast(e.message);
+    toast(e.message, 'error');
   } finally {
     busy(f, false);
   }
@@ -858,7 +900,7 @@ $('#capital-form').onsubmit = async (e) => {
     await refresh();
     toast('Starting capital updated.');
   } catch (e) {
-    toast(e.message);
+    toast(e.message, 'error');
   } finally {
     busy($('#capital-form'), false);
   }
@@ -873,9 +915,10 @@ $('#strategy-form').onsubmit = async (e) => {
     state.strategies = await api('/api/strategies');
     renderSettings();
     f.reset();
+    $('#strategy-form').closest('details').open = false;
     toast('Strategy added.');
   } catch (e) {
-    toast(e.message);
+    toast(e.message, 'error');
   } finally {
     busy(f, false);
   }
@@ -899,7 +942,7 @@ $('#download-report').onclick = async () => {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     toast('Your monthly report is ready.');
   } catch (e) {
-    toast(e.message);
+    toast(e.message, 'error');
   } finally {
     b.disabled = false;
   }
@@ -914,6 +957,7 @@ api('/api/auth/me')
   })
   .catch((e) => {
     $('#auth-error').textContent = e.message;
+    toast(e.message, 'error');
   });
 
 function renderYear() {
@@ -998,6 +1042,7 @@ async function openChallengeDetails(id) {
       : '<div class="empty">This challenge has not started yet. Daily results will appear here.</div>';
   } catch (e) {
     $('#challenge-detail-period').textContent = e.message;
+    toast(e.message, 'error');
   }
 }
 $('#email-change-form').onsubmit = async (e) => {
@@ -1011,8 +1056,10 @@ $('#email-change-form').onsubmit = async (e) => {
     f.elements.password.value = '';
     $('#email-verify-form').hidden = false;
     $('#account-email-status').textContent = r.message;
+    toast(r.message);
   } catch (e) {
     $('#account-email-status').textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     busy(f, false);
   }
@@ -1031,8 +1078,10 @@ $('#email-verify-form').onsubmit = async (e) => {
     $('#email-change-form').reset();
     $('#account-email-status').textContent =
       'Email updated. You can now send a test email to confirm delivery.';
+    toast('Email updated successfully.');
   } catch (e) {
     $('#account-email-status').textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     busy(f, false);
   }
@@ -1044,8 +1093,10 @@ $('#test-email').onclick = async () => {
   try {
     const r = await api('/api/account/email/test', 'POST', {});
     $('#account-email-status').textContent = r.message;
+    toast(r.message);
   } catch (e) {
     $('#account-email-status').textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     $('#test-email').disabled = false;
   }
@@ -1094,18 +1145,26 @@ function viewTrade(id) {
       ? `Available until ${new Date(new Date(t.recorded_at).getTime() + 6 * 3600000).toLocaleString()}`
       : 'Locked (six-hour window ended or legacy entry)',
   };
-  $('#view-trade-body').innerHTML = `<dl class="trade-details">${Object.entries(info)
-    .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(String(v))}</dd></div>`)
-    .join('')}</dl><h3>Saved charges breakdown</h3>${Object.entries(
-    t.charge_details?.items || { 'Actual / manual total': t.fees || 0 },
-  )
-    .map(([k, v]) => `<div class="charge-line"><span>${esc(k)}</span><b>${money(v, 2)}</b></div>`)
-    .join('')}`;
+  const rows = (keys) =>
+    `<dl class="trade-details">${keys.map((k) => `<div><dt>${esc(k)}</dt><dd>${esc(String(info[k]))}</dd></div>`).join('')}</dl>`;
+  $('#view-trade-body').innerHTML =
+    `<div class="trade-identity"><span class="type-badge">${esc(t.instrument_type)} · ${esc(t.side || 'Long')}</span><h3>${esc(t.symbol)}</h3><p>${esc(info.Date)} · ${esc(info.Broker)} · ${esc(info.Exchange)}</p></div>
+    <div class="trade-result-grid"><div class="net-result ${tone(+t.pnl)}"><small>NET REALISED P&L</small><strong>${money(t.pnl, 2)}</strong><span>After all charges</span></div><div><small>GROSS P&L</small><strong class="${tone(+t.pnl + +(t.fees || 0))}">${info['Gross P&L']}</strong><span>Before charges</span></div><div class="charges-result"><small>TOTAL CHARGES</small><strong>${info['Total charges']}</strong><span>${t.fee_mode === 'estimate' ? 'Estimated' : 'Actual / manual'}</span></div></div>
+    <section class="detail-section"><h3>Execution</h3>${rows(['Entry price', 'Exit price', 'Units', 'Entry / exit (IST)', 'Expiry date', 'Strategy'])}</section>
+    <section class="detail-section"><h3>Plan & reflection</h3>${rows(['Stop loss', 'Target'])}<div class="trade-note"><small>TRADE NOTES</small><p>${esc(info.Notes)}</p></div></section>
+    <section class="detail-section charges-section"><h3>Charges breakdown <span>${info['Total charges']}</span></h3>${Object.entries(
+      t.charge_details?.items || { 'Actual / manual total': t.fees || 0 },
+    )
+      .map(([k, v]) => `<div class="charge-line"><span>${esc(k)}</span><b>${money(v, 2)}</b></div>`)
+      .join(
+        '',
+      )}</section><p class="deletion-note"><i class="bi bi-lock" aria-hidden="true"></i> ${esc(info.Deletion)}</p>`;
   $('#view-trade-dialog').showModal();
 }
 $('#header-theme').value = window.journalTheme.preference;
 $('#header-theme').onchange = (e) => {
   window.journalTheme.set(e.target.value);
+  toast('Appearance saved on this device.');
   $('#theme-select').value = $('#settings-theme').value = e.target.value;
 };
 $('#appearance-toggle').onclick = () => {
@@ -1126,3 +1185,41 @@ document.addEventListener('keydown', (e) => {
     $('#appearance-toggle').setAttribute('aria-expanded', 'false');
   }
 });
+
+function setSidebarCollapsed(collapsed) {
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+  $('#sidebar-toggle').setAttribute('aria-expanded', String(!collapsed));
+  $('#sidebar-toggle').setAttribute(
+    'aria-label',
+    collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+  );
+  try {
+    localStorage.setItem('journal-sidebar-collapsed', String(collapsed));
+  } catch {}
+  requestAnimationFrame(() => {
+    if (state.page === 'dashboard' && state.data.summary.count !== undefined) renderChart();
+  });
+}
+try {
+  setSidebarCollapsed(localStorage.getItem('journal-sidebar-collapsed') === 'true');
+} catch {}
+$('#sidebar-toggle').onclick = () =>
+  setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+$$('#navigation button').forEach((b) => {
+  b.title = b.textContent.trim();
+  b.setAttribute('aria-label', b.textContent.trim());
+});
+
+let validationToastPending = false;
+document.addEventListener(
+  'invalid',
+  (e) => {
+    if (validationToastPending) return;
+    validationToastPending = true;
+    toast(e.target.validationMessage, 'error');
+    queueMicrotask(() => {
+      validationToastPending = false;
+    });
+  },
+  true,
+);

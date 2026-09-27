@@ -85,7 +85,7 @@
         <nav id="navigation">
           <button data-page="dashboard" class="nav-item active">
             <span class="nav-icon"><i class="bi bi-grid-1x2" aria-hidden="true"></i></span
-            ><span>Overview</span><span class="nav-dot"></span></button
+            ><span>Overview</span></button
           ><button data-page="trades" class="nav-item">
             <span class="nav-icon"><i class="bi bi-journal-text" aria-hidden="true"></i></span
             ><span>Trade journal</span></button
@@ -98,11 +98,6 @@
           </button>
         </nav>
         <div class="sidebar-bottom">
-          <div class="mindset">
-            <span class="little-spark"><i class="bi bi-stars" aria-hidden="true"></i></span>
-            <h4>Progress over perfection.</h4>
-            <p>Good trades start with a plan.<br />Great traders review it.</p>
-          </div>
           <div class="profile">
             <div class="avatar" id="avatar">T</div>
             <div>
@@ -113,9 +108,24 @@
       </aside>
       <div class="main-shell">
         <header class="topbar">
+          <button
+            id="sidebar-toggle"
+            class="icon-button"
+            aria-label="Collapse sidebar"
+            aria-expanded="true"
+            aria-controls="navigation"
+          >
+            <i class="bi bi-layout-sidebar-inset" aria-hidden="true"></i>
+          </button>
           <div class="breadcrumb">
             Workspace <span>/</span> <strong id="breadcrumb">Overview</strong>
           </div>
+          <label class="global-month"
+            ><i class="bi bi-calendar3" aria-hidden="true"></i
+            ><span
+              ><small>WORKSPACE PERIOD</small
+              ><input id="month" type="month" aria-label="Selected month" required /></span
+          ></label>
           <div class="topbar-right">
             <span id="session-status" class="header-greeting">Hi, trader</span>
             <div class="appearance-menu">
@@ -151,11 +161,15 @@
               </button>
               <div id="account-dropdown" class="account-dropdown" hidden>
                 <div class="account-details">
-                  <strong id="menu-name"></strong><small id="menu-email"></small
-                  ><a href="/quick-add.html">Quick entry with email code</a>
+                  <span class="avatar" id="menu-avatar" aria-hidden="true">T</span>
+                  <div><strong id="menu-name"></strong><small id="menu-email"></small></div>
                 </div>
                 <button data-page="settings">
-                  <i class="bi bi-gear" aria-hidden="true"></i> Settings</button
+                  <i class="bi bi-person" aria-hidden="true"></i> My profile</button
+                ><button data-page="settings" data-settings-focus="settings-theme">
+                  <i class="bi bi-sliders" aria-hidden="true"></i> Preferences</button
+                ><a class="menu-link" href="/quick-add.html"
+                  ><i class="bi bi-journal-plus" aria-hidden="true"></i> Quick trade entry</a
                 ><label class="theme-control"
                   >Appearance<select id="theme-select">
                     <option value="system">System (auto)</option>
@@ -169,6 +183,9 @@
             </div>
           </div>
         </header>
+        <button class="trade-fab" id="add-trade" aria-label="Add a trade" title="Add a trade">
+          <i class="bi bi-journal-plus" aria-hidden="true"></i>
+        </button>
         <main>
           <div id="demo-banner" class="demo-banner" hidden>
             <span
@@ -182,14 +199,6 @@
               <div class="eyebrow" id="page-eyebrow">YOUR EDGE, IN FOCUS</div>
               <h1 id="page-title">Performance overview<span class="brand-dot">.</span></h1>
               <p id="page-description">A little perspective on every trade you make.</p>
-            </div>
-            <div class="heading-actions">
-              <label class="month-control"
-                ><span class="sr-only">Selected month</span
-                ><input id="month" type="month" required /></label
-              ><button class="primary" id="add-trade">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i> <span>Log a trade</span>
-              </button>
             </div>
           </div>
           <section id="view-dashboard" class="page-view">
@@ -371,7 +380,7 @@
                 <article class="panel">
                   <div class="panel-heading">
                     <div>
-                      <h2>Your profile</h2>
+                      <h2><i class="bi bi-person-circle" aria-hidden="true"></i>Your profile</h2>
                       <p>A workspace that feels like yours.</p>
                     </div>
                   </div>
@@ -409,7 +418,9 @@
                 <article class="panel">
                   <div class="panel-heading">
                     <div>
-                      <h2>Stay in the loop</h2>
+                      <h2>
+                        <i class="bi bi-sliders" aria-hidden="true"></i>Preferences & summaries
+                      </h2>
                       <p>Your review ritual, made simple.</p>
                     </div>
                   </div>
@@ -438,99 +449,113 @@
                 ><button class="primary" type="submit">Save preferences</button>
               </div>
             </form>
-            <article class="panel email-account-panel">
-              <div class="panel-heading">
-                <div>
-                  <h2>Email address & delivery test</h2>
-                  <p>Verify a new address before changing your sign-in email.</p>
-                </div>
-                <button class="secondary" id="test-email" type="button">
-                  <i class="bi bi-envelope-check" aria-hidden="true"></i> Send test email
-                </button>
-              </div>
-              <form id="email-change-form">
-                <div class="form-row">
-                  <label
-                    >New email address<input
-                      name="email"
-                      type="email"
-                      autocomplete="email"
-                      required
-                      maxlength="255" /></label
-                  ><label
-                    >Current password<input
-                      name="password"
-                      type="password"
-                      autocomplete="current-password"
-                      required
-                      maxlength="72"
-                  /></label>
-                </div>
-                <button type="submit" class="secondary">Send verification code</button>
-              </form>
-              <form id="email-verify-form" hidden>
-                <label
-                  >6-digit verification code<input
-                    name="code"
-                    inputmode="numeric"
-                    autocomplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    maxlength="6"
-                    required /></label
-                ><button type="submit" class="primary">Verify & update email</button>
-              </form>
-              <p id="account-email-status" class="fine" role="status"></p>
-            </article>
-            <div class="settings-grid">
-              <article class="panel">
-                <div class="panel-heading">
-                  <div>
-                    <h2>Monthly starting capital</h2>
-                    <p id="capital-month"></p>
+            <div class="settings-workbench">
+              <div class="settings-stack">
+                <article class="panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h2>
+                        <i class="bi bi-wallet2" aria-hidden="true"></i>Monthly starting capital
+                      </h2>
+                      <p id="capital-month"></p>
+                    </div>
                   </div>
-                </div>
-                <form id="capital-form">
-                  <label
-                    >Starting capital (₹)<input
-                      name="capital"
-                      type="number"
-                      min="0"
-                      max="9999999999"
-                      step="0.01"
-                      required /></label
-                  ><button class="secondary" type="submit">Update capital</button>
-                </form>
-                <p class="fine">
-                  Used for returns and risk planning. Updating it does not change trade results.
-                </p>
-              </article>
+                  <form id="capital-form">
+                    <label
+                      >Starting capital (₹)<input
+                        name="capital"
+                        type="number"
+                        min="0"
+                        max="9999999999"
+                        step="0.01"
+                        required /></label
+                    ><button class="secondary" type="submit">Update capital</button>
+                  </form>
+                  <p class="fine">
+                    Used for returns and risk planning. Updating it does not change trade results.
+                  </p>
+                </article>
+                <article class="panel email-account-panel">
+                  <div class="panel-heading">
+                    <div>
+                      <h2>
+                        <i class="bi bi-envelope-check" aria-hidden="true"></i>Email address &
+                        delivery test
+                      </h2>
+                      <p>Verify a new address before changing your sign-in email.</p>
+                    </div>
+                    <button class="secondary" id="test-email" type="button">
+                      <i class="bi bi-envelope-check" aria-hidden="true"></i> Send test email
+                    </button>
+                  </div>
+                  <form id="email-change-form">
+                    <div class="form-row">
+                      <label
+                        >New email address<input
+                          name="email"
+                          type="email"
+                          autocomplete="email"
+                          required
+                          maxlength="255" /></label
+                      ><label
+                        >Current password<input
+                          name="password"
+                          type="password"
+                          autocomplete="current-password"
+                          required
+                          maxlength="72"
+                      /></label>
+                    </div>
+                    <button type="submit" class="secondary">Send verification code</button>
+                  </form>
+                  <form id="email-verify-form" hidden>
+                    <label
+                      >6-digit verification code<input
+                        name="code"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        required /></label
+                    ><button type="submit" class="primary">Verify & update email</button>
+                  </form>
+                  <p id="account-email-status" class="fine" role="status"></p>
+                </article>
+              </div>
               <article class="panel">
                 <div class="panel-heading">
                   <div>
-                    <h2>Your strategies</h2>
+                    <h2>
+                      <i class="bi bi-journal-bookmark" aria-hidden="true"></i>Your strategies
+                    </h2>
                     <p>Build a repeatable playbook.</p>
                   </div>
                 </div>
                 <div id="strategy-list"></div>
-                <form id="strategy-form" class="strategy-form">
-                  <label
-                    ><span class="sr-only">New strategy name</span
-                    ><input
-                      name="name"
-                      maxlength="100"
-                      placeholder="Name a new strategy"
-                      required /></label
-                  ><label
-                    >Description<textarea
-                      name="description"
-                      maxlength="2000"
-                      rows="3"
-                      placeholder="Entry rules, confirmation signals, and when to avoid this setup…"
-                    ></textarea></label
-                  ><button class="secondary" type="submit">
-                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Add strategy
-                  </button>
-                </form>
+                <details class="new-strategy">
+                  <summary>
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Create a strategy
+                  </summary>
+                  <form id="strategy-form" class="strategy-form">
+                    <label
+                      ><span>Strategy name</span
+                      ><input
+                        name="name"
+                        maxlength="100"
+                        placeholder="Name a new strategy"
+                        required /></label
+                    ><label
+                      >Description<textarea
+                        name="description"
+                        maxlength="2000"
+                        rows="3"
+                        placeholder="Entry rules, confirmation signals, and when to avoid this setup…"
+                      ></textarea></label
+                    ><button class="secondary" type="submit">
+                      <i class="bi bi-plus-lg" aria-hidden="true"></i> Add strategy
+                    </button>
+                  </form>
+                </details>
               </article>
             </div>
           </section>
@@ -557,12 +582,16 @@
         ><button type="button" class="danger" id="confirm-delete">Delete</button>
       </div>
     </dialog>
-    <dialog id="trade-dialog">
+    <dialog id="trade-dialog" class="trade-drawer" aria-labelledby="trade-title">
       <form id="trade-form">
         <div class="dialog-heading">
           <div>
             <span class="eyebrow">CAPTURE THE DECISION</span>
             <h2 id="trade-title">Log a trade</h2>
+          </div>
+          <div class="drawer-pnl" aria-live="polite">
+            <small>NET P&amp;L</small><strong id="trade-preview">—</strong
+            ><span id="header-charges">Enter trade prices</span>
           </div>
           <button type="button" class="icon-button close-dialog" aria-label="Close">
             <i class="bi bi-x-lg" aria-hidden="true"></i>
@@ -691,9 +720,8 @@
               placeholder="What was the setup? Did you follow your plan? What did you learn?"
             ></textarea>
           </label>
-          <div class="pnl-preview">
-            <div><small>NET REALISED P&L</small><strong id="trade-preview">₹0.00</strong></div>
-            <div><small>PLANNED RISK</small><span id="risk-preview">Add a stop loss</span></div>
+          <div class="risk-summary">
+            <small>Planned risk</small><span id="risk-preview">Add a stop loss</span>
           </div>
           <p id="risk-warning" class="fine"></p>
           <p id="trade-error" role="alert" class="negative"></p>
@@ -808,6 +836,6 @@
       </div>
       <div id="view-trade-body" class="dialog-body"></div>
     </dialog>
-    <div id="toast" class="toast" role="status" hidden></div>
+    <div id="toast" class="toast" role="status" popover="manual" hidden></div>
   </body>
 </html>

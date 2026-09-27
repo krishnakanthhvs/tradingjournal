@@ -17,7 +17,9 @@ async function request(path, body) {
       $('#verify-panel').hidden = false;
       $('#quick-trade-panel').hidden = true;
     }
-    throw Error(data.error);
+    const error = Error(data.error);
+    error.status = r.status;
+    throw error;
   }
   return data;
 }
@@ -64,6 +66,7 @@ async function submitWith(button, fn, target) {
     await fn();
   } catch (e) {
     $(target).textContent = e.message;
+    toast(e.message, 'error');
   } finally {
     button.disabled = false;
   }
@@ -75,6 +78,7 @@ $('#email-form').onsubmit = (e) => {
     async () => {
       const data = await request('request', Object.fromEntries(new FormData(e.target)));
       $('#verify-message').textContent = data.message;
+      toast(data.message);
       $('#code-form').hidden = false;
       $('#code-form input').focus();
     },
@@ -88,6 +92,7 @@ $('#code-form').onsubmit = (e) => {
     async () => {
       await request('verify', Object.fromEntries(new FormData(e.target)));
       await openForm();
+      toast('Email verified. You can now add trades.');
     },
     '#verify-message',
   );
@@ -95,7 +100,13 @@ $('#code-form').onsubmit = (e) => {
 form.oninput = update;
 form.onsubmit = (e) => {
   e.preventDefault();
-  if (!ChargeForm.update(form)) return;
+  if (!ChargeForm.update(form)) {
+    toast(
+      form.querySelector('.charge-error').textContent || 'Complete the trade prices first.',
+      'error',
+    );
+    return;
+  }
   submitWith(
     e.submitter,
     async () => {
@@ -105,7 +116,7 @@ form.onsubmit = (e) => {
       $('#trade-error').textContent = '';
       $('#quick-success').textContent =
         `${data.symbol} saved to your journal. You can add another trade.`;
-      $('#quick-success').scrollIntoView({ block: 'nearest' });
+      toast(`${data.symbol} saved to your journal.`);
     },
     '#trade-error',
   );
@@ -125,4 +136,21 @@ setInterval(() => {
     $('#verify-message').textContent = 'Your session ended. Request a new code to continue.';
   }
 }, 10000);
-openForm().catch(() => {});
+openForm().catch((e) => {
+  if (e.status !== 401) toast(e.message, 'error');
+});
+
+let toastTimer;
+function toast(message, type = 'success') {
+  const el = $('#toast');
+  el.textContent = message;
+  el.dataset.type = type;
+  el.hidden = false;
+  if (el.showPopover && !el.matches(':popover-open')) el.showPopover();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    if (el.hidePopover && el.matches(':popover-open')) el.hidePopover();
+    el.hidden = true;
+  }, 5500);
+}
+document.addEventListener('invalid', (e) => toast(e.target.validationMessage, 'error'), true);
