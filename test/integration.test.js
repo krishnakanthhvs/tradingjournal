@@ -58,7 +58,7 @@ test(
       assert.equal(
         (
           await request('/api/settings', 'PUT', {
-            display_name: 'QA test',
+            display_name: 'krishna',
             weekly_email: false,
             show_ticker: false,
             default_lot_size: 25,
@@ -67,6 +67,7 @@ test(
         ).status,
         200,
       );
+      assert.equal((await request('/api/settings')).data.display_name, 'Krishna');
       assert.equal(
         (await request('/api/capital', 'POST', { yearMonth: '2026-01', capital: 100000 })).status,
         200,
@@ -99,6 +100,23 @@ test(
           .count,
         0,
       );
+      const annual = await request('/api/dashboard?month=2026-01&year=2025');
+      assert.equal(annual.data.summary.net, 950);
+      assert.equal(annual.data.monthlyCapital, 100000);
+      assert.deepEqual(annual.data.yearlyPnL, []);
+      assert.deepEqual(annual.data.availableYears, [2026]);
+      const thisYear = await request('/api/dashboard?month=2026-02&year=2026');
+      assert.equal(thisYear.data.summary.count, 0);
+      assert.equal(Number(thisYear.data.yearlyPnL[0].pnl), 950);
+      assert.equal((await request('/api/dashboard?month=2026-01&year=invalid')).status, 400);
+      const privateYear = await request(
+        '/api/dashboard?month=2026-01&year=2026',
+        'GET',
+        null,
+        otherCookie,
+      );
+      assert.deepEqual(privateYear.data.yearlyPnL, []);
+      assert.deepEqual(privateYear.data.availableYears, []);
       const challenge = await request('/api/challenges', 'POST', {
         name: 'QA goal',
         target: 35000,

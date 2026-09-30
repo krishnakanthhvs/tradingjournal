@@ -170,12 +170,6 @@
                   <i class="bi bi-sliders" aria-hidden="true"></i> Preferences</button
                 ><a class="menu-link" href="/quick-add.html"
                   ><i class="bi bi-journal-plus" aria-hidden="true"></i> Quick trade entry</a
-                ><label class="theme-control"
-                  >Appearance<select id="theme-select">
-                    <option value="system">System (auto)</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select></label
                 ><button id="logout">
                   <i class="bi bi-box-arrow-right" aria-hidden="true"></i> Sign out
                 </button>
@@ -200,10 +194,52 @@
               <h1 id="page-title">Performance overview<span class="brand-dot">.</span></h1>
               <p id="page-description">A little perspective on every trade you make.</p>
             </div>
+            <div id="trade-heading-tools" class="trade-heading-tools" hidden>
+              <span class="tag" id="filtered-count"></span>
+              <div class="filters">
+                <label class="search"
+                  ><span class="sr-only">Search trades</span
+                  ><input
+                    id="search-trades"
+                    placeholder="Search symbol, strategy, or notes…"
+                    type="search" /></label
+                ><label
+                  ><span class="sr-only">Outcome</span
+                  ><select id="outcome-filter">
+                    <option value="all">All outcomes</option>
+                    <option value="win">Winning trades</option>
+                    <option value="loss">Losing trades</option>
+                    <option value="flat">Breakeven</option>
+                  </select></label
+                ><button class="secondary" id="clear-filters">Clear filters</button>
+              </div>
+            </div>
+            <div id="challenge-heading-tools" hidden>
+              <button class="primary" id="add-challenge">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> New challenge
+              </button>
+            </div>
           </div>
           <section id="view-dashboard" class="page-view">
             <div id="metrics" class="metrics"></div>
-            <div class="overview-grid">
+            <div class="overview-grid analytics-row">
+              <article class="panel annual-panel">
+                <div class="panel-heading">
+                  <div>
+                    <h2>Year at a glance</h2>
+                    <p>Monthly net results across the selected year.</p>
+                  </div>
+                  <label class="year-select"
+                    ><span class="sr-only">Year at a glance</span
+                    ><select id="year-select" aria-label="Year at a glance"></select
+                  ></label>
+                </div>
+                <div class="annual-total">
+                  <strong id="year-total">₹0</strong><span>Net P&amp;L · full year</span>
+                </div>
+                <div id="year-chart" class="year-chart"></div>
+              </article>
+
               <article class="panel equity-panel">
                 <div class="panel-heading">
                   <div>
@@ -241,7 +277,7 @@
                 <div class="insight" id="outcome-insight"></div>
               </article>
             </div>
-            <div class="secondary-grid">
+            <div class="secondary-grid context-row">
               <article class="panel calendar-panel">
                 <div class="panel-heading">
                   <h2>Trading calendar</h2>
@@ -268,18 +304,6 @@
                 </div>
                 <div id="featured-challenge"></div>
               </article>
-            </div>
-            <div class="secondary-grid">
-              <article class="panel">
-                <div class="panel-heading">
-                  <div>
-                    <h2>Year at a glance</h2>
-                    <p>Monthly net results across the selected year.</p>
-                  </div>
-                  <span class="tag" id="year-label"></span>
-                </div>
-                <div id="year-chart" class="year-chart"></div>
-              </article>
               <article class="panel">
                 <div class="panel-heading">
                   <h2>From your playbook</h2>
@@ -305,41 +329,11 @@
             <article class="panel">
               <div class="panel-heading">
                 <h2>Your trade ledger</h2>
-                <span class="tag" id="filtered-count"></span>
-              </div>
-              <div class="filters">
-                <label class="search"
-                  ><span class="sr-only">Search trades</span
-                  ><input
-                    id="search-trades"
-                    placeholder="Search symbol, strategy, or notes…"
-                    type="search" /></label
-                ><label
-                  ><span class="sr-only">Outcome</span
-                  ><select id="outcome-filter">
-                    <option value="all">All outcomes</option>
-                    <option value="win">Winning trades</option>
-                    <option value="loss">Losing trades</option>
-                    <option value="flat">Breakeven</option>
-                  </select></label
-                ><button class="secondary" id="clear-filters">Clear filters</button>
               </div>
               <div id="all-trades"></div>
             </article>
           </section>
           <section id="view-challenges" class="page-view" hidden>
-            <div class="challenge-intro">
-              <div>
-                <h2>A goal. A timeframe. A clearer path.</h2>
-                <p>
-                  Track your net results against a personal target. Stay disciplined; a target is
-                  never a reason to force a trade.
-                </p>
-              </div>
-              <button class="primary" id="add-challenge">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i> New challenge
-              </button>
-            </div>
             <div id="challenge-list" class="challenge-grid"></div>
           </section>
           <section id="view-reports" class="page-view" hidden>

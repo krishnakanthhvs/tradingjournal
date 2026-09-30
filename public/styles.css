@@ -3922,3 +3922,171 @@ button:disabled {
     max-width: calc(100vw - 32px);
   }
 }
+
+/* Compact overview: annual context, monthly performance, and daily planning. */
+.analytics-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.85fr);
+}
+.context-row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.analytics-row > .panel,
+.context-row > .panel {
+  min-width: 0;
+}
+.analytics-row .panel-heading,
+.context-row .panel-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.analytics-row .panel-heading,
+.context-row .panel-heading {
+  align-items: flex-start;
+}
+.analytics-row .panel-heading {
+  min-height: 60px;
+}
+.analytics-row .year-chart {
+  gap: 6px;
+  height: 215px;
+}
+.analytics-row .year-bar-space {
+  height: 170px;
+}
+.annual-total {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.annual-total strong {
+  font-size: 26px;
+  letter-spacing: -0.7px;
+}
+.annual-total span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.year-select select {
+  width: 88px;
+  min-height: 38px;
+}
+.context-row .calendar .day {
+  min-width: 0;
+}
+.context-row .challenge-foot {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.context-row .playbook-row {
+  align-items: flex-start;
+}
+.context-row .playbook-row strong {
+  white-space: nowrap;
+}
+.trade-heading-tools {
+  flex: 0 1 620px;
+  min-width: 0;
+  text-align: right;
+}
+.trade-heading-tools .filters {
+  margin: 10px 0 0;
+  gap: 8px;
+}
+.trade-heading-tools .filters .search {
+  min-width: 140px;
+  flex: 1;
+}
+.trade-heading-tools .filters input {
+  width: 100%;
+}
+#challenge-heading-tools {
+  flex-shrink: 0;
+}
+@media (max-width: 1350px) {
+  .analytics-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .analytics-row .equity-panel {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .context-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .context-row .calendar-panel {
+    grid-column: 1 / -1;
+  }
+  .page-heading:has(.trade-heading-tools:not([hidden])) {
+    flex-wrap: wrap;
+  }
+  .trade-heading-tools {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}
+@media (max-width: 700px) {
+  .analytics-row,
+  .context-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .analytics-row .equity-panel {
+    grid-row: auto;
+  }
+  .trade-heading-tools {
+    width: 100%;
+  }
+  .trade-heading-tools .filters {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .trade-heading-tools .filters .search {
+    flex-basis: 100%;
+  }
+  .trade-heading-tools .filters label:not(.search) {
+    flex: 1;
+  }
+  .trade-heading-tools .filters select {
+    width: 100%;
+  }
+  #challenge-heading-tools {
+    width: 100%;
+  }
+}
+@media (max-width: 700px) {
+  .page-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .page-heading > div {
+    width: 100%;
+    min-width: 0;
+  }
+  .trade-heading-tools {
+    flex: auto;
+  }
+}
+
+/* Keep the account strip and workspace footer on one shared baseline. */
+@media (min-width: 851px) {
+  .sidebar {
+    --account-strip-height: 56px;
+    padding-bottom: var(--account-strip-height);
+  }
+  .sidebar-bottom {
+    position: absolute;
+    inset: auto 0 0;
+    height: var(--account-strip-height);
+  }
+  .sidebar-bottom .profile {
+    height: 100%;
+    padding: 0 22px;
+  }
+  body.sidebar-collapsed .sidebar-bottom .profile {
+    padding-inline: 0;
+  }
+  .workspace-footer {
+    height: 56px;
+    min-height: 56px;
+    padding-block: 0;
+  }
+}

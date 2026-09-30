@@ -29,6 +29,7 @@ let state = {
   data: { monthTrades: [], summary: {} },
   page: 'dashboard',
   chartMode: 'cumulative',
+  year: today().slice(0, 4),
   editing: null,
   authMode: 'login',
   loadVersion: 0,
@@ -212,7 +213,7 @@ async function refresh() {
     else {
       const month = $('#month').value;
       const [data, challenges] = await Promise.all([
-        api('/api/dashboard?month=' + month),
+        api('/api/dashboard?month=' + month + '&year=' + state.year),
         api('/api/challenges'),
       ]);
       if (version !== state.loadVersion) return;
@@ -262,6 +263,8 @@ const pages = {
 function navigate(page, updateUrl = true) {
   if (!pages[page]) return;
   state.page = page;
+  $('#trade-heading-tools').hidden = page !== 'trades';
+  $('#challenge-heading-tools').hidden = page !== 'challenges';
   if (updateUrl && location.hash !== `#${page}`) history.pushState(null, '', `#${page}`);
   $$('.page-view').forEach((v) => (v.hidden = v.id !== `view-${page}`));
   $$('#navigation button').forEach((b) => {
@@ -494,7 +497,8 @@ function renderReport() {
 function renderSettings() {
   const s = state.settings,
     form = $('#settings-form'),
-    name = s.display_name || state.user.email.split('@')[0];
+    rawName = (s.display_name || state.user.email.split('@')[0]).trim(),
+    name = rawName.charAt(0).toLocaleUpperCase() + rawName.slice(1);
   $('#session-status').textContent = `Hi, ${name}`;
   $('#profile-name').textContent = name;
   $('#profile-email').textContent = state.user.email;
@@ -665,13 +669,12 @@ document.addEventListener('keydown', (e) => {
     $('#account-toggle').focus();
   }
 });
-for (const id of ['theme-select', 'settings-theme', 'header-theme']) {
+for (const id of ['settings-theme', 'header-theme']) {
   $('#' + id).value = window.journalTheme.preference;
   $('#' + id).onchange = (e) => {
     window.journalTheme.set(e.target.value);
     toast('Appearance saved on this device.');
-    for (const other of ['theme-select', 'settings-theme', 'header-theme'])
-      $('#' + other).value = e.target.value;
+    for (const other of ['settings-theme', 'header-theme']) $('#' + other).value = e.target.value;
   };
 }
 let savedMonth;
@@ -774,6 +777,10 @@ document.addEventListener('click', (e) => {
     $('#day-dialog').showModal();
   }
 });
+$('#year-select').onchange = () => {
+  state.year = $('#year-select').value;
+  refresh();
+};
 $('#month').onchange = () => {
   if ($('#month').value) refresh();
 };
@@ -961,20 +968,34 @@ api('/api/auth/me')
   });
 
 function renderYear() {
-  const year = $('#month').value.slice(0, 4);
-  $('#year-label').textContent = year;
+  const year = state.year;
+  const currentYear = Number(today().slice(0, 4));
+  const years = [
+    ...new Set([
+      ...(state.data.availableYears || []),
+      Number(year),
+      ...Array.from({ length: 6 }, (_, i) => currentYear - i),
+      currentYear + 1,
+    ]),
+  ].sort((a, b) => b - a);
+  $('#year-select').innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join('');
+  $('#year-select').value = year;
   const values = Array.from({ length: 12 }, (_, i) =>
     Number(
       state.data.yearlyPnL.find((v) => v.month === `${year}-${String(i + 1).padStart(2, '0')}`)
         ?.pnl || 0,
     ),
   );
-  if (state.demo) values[Number($('#month').value.slice(5)) - 1] = state.data.summary.net;
+  if (state.demo && year === $('#month').value.slice(0, 4))
+    values[Number($('#month').value.slice(5)) - 1] = state.data.summary.net;
+  const total = values.reduce((sum, value) => sum + value, 0);
+  $('#year-total').textContent = money(total, 2);
+  $('#year-total').className = tone(total);
   const max = Math.max(1, ...values.map(Math.abs));
   $('#year-chart').innerHTML = values
     .map(
       (v, i) =>
-        `<div class="year-bar-column"><div class="year-bar-space"><i style="height:${Math.max(2, (Math.abs(v) / max) * 100)}%;background:${v < 0 ? 'var(--red)' : 'var(--green)'}" title="${money(v, 2)}"></i></div><small>${['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][i]}</small><span class="sr-only">${i + 1}: ${money(v, 2)}</span></div>`,
+        `<div class="year-bar-column"><div class="year-bar-space"><i style="height:${v === 0 ? 0 : Math.max(2, (Math.abs(v) / max) * 100)}%;background:${v < 0 ? 'var(--red)' : 'var(--green)'}" title="${money(v, 2)}"></i></div><small>${['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][i]}</small><span class="sr-only">${i + 1}: ${money(v, 2)}</span></div>`,
     )
     .join('');
   const trades = state.data.monthTrades,
@@ -1161,12 +1182,6 @@ function viewTrade(id) {
       )}</section><p class="deletion-note"><i class="bi bi-lock" aria-hidden="true"></i> ${esc(info.Deletion)}</p>`;
   $('#view-trade-dialog').showModal();
 }
-$('#header-theme').value = window.journalTheme.preference;
-$('#header-theme').onchange = (e) => {
-  window.journalTheme.set(e.target.value);
-  toast('Appearance saved on this device.');
-  $('#theme-select').value = $('#settings-theme').value = e.target.value;
-};
 $('#appearance-toggle').onclick = () => {
   const panel = $('#appearance-panel');
   panel.hidden = !panel.hidden;

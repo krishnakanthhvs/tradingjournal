@@ -140,7 +140,9 @@ app.get(
   wrap(async (req, res) => {
     const month = monthValue(req.query.month),
       id = req.session.userId;
-    const [trades, cap, year] = await Promise.all([
+    const selectedYear = String(req.query.year ?? month.slice(0, 4));
+    if (!/^[1-9]\d{3}$/.test(selectedYear)) fail('Choose a valid four-digit year');
+    const [trades, cap, year, years] = await Promise.all([
       monthTrades(id, month),
       pool.query('SELECT capital FROM monthly_capitals WHERE user_id=$1 AND year_month=$2', [
         id,
@@ -148,7 +150,11 @@ app.get(
       ]),
       pool.query(
         `SELECT to_char(trade_date,'YYYY-MM') AS month,sum(pnl) AS pnl FROM trades WHERE user_id=$1 AND trade_date >= $2::date AND trade_date < $2::date + interval '1 year' GROUP BY 1 ORDER BY 1`,
-        [id, month.slice(0, 4) + '-01-01'],
+        [id, selectedYear + '-01-01'],
+      ),
+      pool.query(
+        'SELECT DISTINCT EXTRACT(YEAR FROM trade_date)::integer AS year FROM trades WHERE user_id=$1 ORDER BY year DESC',
+        [id],
       ),
     ]);
     res.json({
@@ -156,6 +162,7 @@ app.get(
       summary: summary(trades),
       monthlyCapital: Number(cap.rows[0]?.capital || 0),
       yearlyPnL: year.rows,
+      availableYears: years.rows.map((row) => row.year),
     });
   }),
 );
@@ -307,7 +314,8 @@ app.put(
   '/api/settings',
   wrap(async (req, res) => {
     const b = req.body,
-      name = String(b.display_name || '').trim();
+      rawName = String(b.display_name || '').trim(),
+      name = rawName.charAt(0).toLocaleUpperCase() + rawName.slice(1);
     if (name.length > 80) fail('Name is too long');
     if (typeof b.weekly_email !== 'boolean' || typeof b.show_ticker !== 'boolean')
       fail('Invalid preferences');
