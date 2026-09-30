@@ -69,8 +69,60 @@ test(
       );
       assert.equal((await request('/api/settings')).data.display_name, 'Krishna');
       assert.equal(
-        (await request('/api/capital', 'POST', { yearMonth: '2026-01', capital: 100000 })).status,
+        (
+          await request('/api/capital', 'POST', {
+            yearMonth: '2026-01',
+            capital: 100000,
+            acknowledge_lock: true,
+          })
+        ).status,
         200,
+      );
+      assert.equal((await request('/api/dashboard?month=2026-01')).data.capitalLocked, true);
+      assert.equal(
+        (
+          await request('/api/capital', 'POST', {
+            yearMonth: '2026-01',
+            capital: 1,
+            acknowledge_lock: true,
+          })
+        ).status,
+        409,
+      );
+      assert.equal((await request('/api/dashboard?month=2026-01')).data.monthlyCapital, 100000);
+      assert.equal((await request('/api/dashboard?month=2026-02')).data.capitalLocked, false);
+      assert.equal(
+        (await request('/api/capital', 'POST', { yearMonth: '2026-02', capital: 0 })).status,
+        400,
+      );
+      // Existing default/legacy rows are not confirmation of a user's starting capital.
+      await pool.query(
+        "INSERT INTO monthly_capitals(user_id,year_month,capital) SELECT id,'2026-02',10000 FROM users WHERE email=$1",
+        [emails[0]],
+      );
+      const legacyCapital = await request('/api/dashboard?month=2026-02');
+      assert.equal(legacyCapital.data.monthlyCapital, 10000);
+      assert.equal(legacyCapital.data.capitalLocked, false);
+      const capitalRace = await Promise.all(
+        [1, 2].map(() =>
+          request('/api/capital', 'POST', {
+            yearMonth: '2026-02',
+            capital: 0,
+            acknowledge_lock: true,
+          }),
+        ),
+      );
+      assert.deepEqual(capitalRace.map((r) => r.status).sort(), [200, 409]);
+      assert.equal((await request('/api/dashboard?month=2026-02')).data.capitalLocked, true);
+      assert.equal(
+        (
+          await request('/api/capital', 'POST', {
+            yearMonth: '9999-01',
+            capital: 100,
+            acknowledge_lock: true,
+          })
+        ).status,
+        400,
       );
       const strategy = await request('/api/strategies', 'POST', { name: 'QA <script> strategy' });
       assert.equal(strategy.status, 201);

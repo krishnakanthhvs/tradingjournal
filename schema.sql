@@ -13,6 +13,8 @@ ALTER TABLE trades ADD COLUMN IF NOT EXISTS fees NUMERIC(12,2) NOT NULL DEFAULT 
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS stop_loss NUMERIC(12,2);
 ALTER TABLE trades ADD COLUMN IF NOT EXISTS target_price NUMERIC(12,2);
 CREATE TABLE IF NOT EXISTS monthly_capitals (id SERIAL PRIMARY KEY,user_id INT REFERENCES users(id) ON DELETE CASCADE,year_month VARCHAR(7) NOT NULL,capital NUMERIC(12,2) NOT NULL,UNIQUE(user_id,year_month));
+-- Only an explicit, confirmed save locks capital; legacy/default entries remain editable.
+ALTER TABLE monthly_capitals ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS user_settings (user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,display_name VARCHAR(80) DEFAULT '',weekly_email BOOLEAN DEFAULT false,risk_per_trade NUMERIC(5,2) DEFAULT 1,default_lot_size INT DEFAULT 1,show_ticker BOOLEAN DEFAULT true);
 CREATE TABLE IF NOT EXISTS challenges (id SERIAL PRIMARY KEY,user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name VARCHAR(100) NOT NULL,target NUMERIC(12,2) NOT NULL CHECK(target>0),start_date DATE NOT NULL,end_date DATE NOT NULL,CHECK(end_date>=start_date));
 CREATE TABLE IF NOT EXISTS email_deliveries (user_id INT REFERENCES users(id) ON DELETE CASCADE,week_start DATE NOT NULL,sent_at TIMESTAMPTZ,provider_id TEXT,payload JSONB,PRIMARY KEY(user_id,week_start));

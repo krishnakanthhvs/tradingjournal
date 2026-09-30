@@ -144,10 +144,10 @@ app.get(
     if (!/^[1-9]\d{3}$/.test(selectedYear)) fail('Choose a valid four-digit year');
     const [trades, cap, year, years] = await Promise.all([
       monthTrades(id, month),
-      pool.query('SELECT capital FROM monthly_capitals WHERE user_id=$1 AND year_month=$2', [
-        id,
-        month,
-      ]),
+      pool.query(
+        'SELECT capital,locked_at FROM monthly_capitals WHERE user_id=$1 AND year_month=$2',
+        [id, month],
+      ),
       pool.query(
         `SELECT to_char(trade_date,'YYYY-MM') AS month,sum(pnl) AS pnl FROM trades WHERE user_id=$1 AND trade_date >= $2::date AND trade_date < $2::date + interval '1 year' GROUP BY 1 ORDER BY 1`,
         [id, selectedYear + '-01-01'],
@@ -161,6 +161,7 @@ app.get(
       monthTrades: trades,
       summary: summary(trades),
       monthlyCapital: Number(cap.rows[0]?.capital || 0),
+      capitalLocked: !!cap.rows[0]?.locked_at,
       yearlyPnL: year.rows,
       availableYears: years.rows.map((row) => row.year),
     });
@@ -171,10 +172,18 @@ app.post(
   wrap(async (req, res) => {
     const month = monthValue(req.body.yearMonth),
       capital = number(req.body.capital, 'capital', 0, 9999999999);
-    await pool.query(
-      'INSERT INTO monthly_capitals(user_id,year_month,capital) VALUES($1,$2,$3) ON CONFLICT(user_id,year_month) DO UPDATE SET capital=EXCLUDED.capital',
+    const currentMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' })
+      .format(new Date())
+      .slice(0, 7);
+    if (month > currentMonth) fail('Starting capital opens when that month begins');
+    if (req.body.acknowledge_lock !== true)
+      fail('Confirm that starting capital cannot be edited after saving');
+    const saved = await pool.query(
+      'INSERT INTO monthly_capitals(user_id,year_month,capital,locked_at) VALUES($1,$2,$3,now()) ON CONFLICT(user_id,year_month) DO UPDATE SET capital=EXCLUDED.capital,locked_at=EXCLUDED.locked_at WHERE monthly_capitals.locked_at IS NULL RETURNING id',
       [req.session.userId, month, capital],
     );
+    if (!saved.rowCount)
+      return res.status(409).json({ error: 'Starting capital is already locked for this month' });
     res.json({ success: true });
   }),
 );

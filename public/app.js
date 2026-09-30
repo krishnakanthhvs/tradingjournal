@@ -206,6 +206,7 @@ async function refresh() {
   const version = ++state.loadVersion;
   try {
     localStorage.setItem('journal-month', $('#month').value);
+    localStorage.setItem('journal-last-calendar-month', today().slice(0, 7));
   } catch {}
   $('#load-error').hidden = true;
   try {
@@ -289,7 +290,7 @@ function render() {
   renderTrades();
   renderReport();
   $('#capital-month').textContent = 'Starting balance for ' + monthName();
-  $('#capital-form').elements.capital.value = state.data.monthlyCapital;
+  renderCapital();
 }
 function renderMetrics() {
   const s = state.data.summary,
@@ -677,13 +678,28 @@ for (const id of ['settings-theme', 'header-theme']) {
     for (const other of ['settings-theme', 'header-theme']) $('#' + other).value = e.target.value;
   };
 }
-let savedMonth;
+let savedMonth, lastCalendarMonth;
+let observedCalendarMonth = today().slice(0, 7);
 try {
   savedMonth = localStorage.getItem('journal-month');
+  lastCalendarMonth = localStorage.getItem('journal-last-calendar-month');
 } catch {}
-$('#month').value = /^\d{4}-(0[1-9]|1[0-2])$/.test(savedMonth || '')
-  ? savedMonth
-  : today().slice(0, 7);
+$('#month').value =
+  lastCalendarMonth === observedCalendarMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(savedMonth || '')
+    ? savedMonth
+    : observedCalendarMonth;
+function checkMonthRollover() {
+  const currentMonth = today().slice(0, 7);
+  if (currentMonth === observedCalendarMonth) return;
+  observedCalendarMonth = currentMonth;
+  $('#month').value = currentMonth;
+  if (!$('#app').hidden) refresh();
+}
+window.addEventListener('focus', checkMonthRollover);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkMonthRollover();
+});
+setInterval(checkMonthRollover, 60000);
 $('#auth-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.currentTarget;
@@ -895,21 +911,73 @@ $('#settings-form').onsubmit = async (e) => {
     busy(f, false);
   }
 };
-$('#capital-form').onsubmit = async (e) => {
+function renderCapital() {
+  const form = $('#capital-form'),
+    current = today(),
+    month = $('#month').value;
+  const locked = !!state.data.capitalLocked,
+    future = month > current.slice(0, 7);
+  const opening = new Date((future ? month : current.slice(0, 7)) + '-01T00:00:00Z');
+  if (!future) opening.setUTCMonth(opening.getUTCMonth() + 1);
+  const days = Math.ceil((opening - new Date(current + 'T00:00:00Z')) / 86400000);
+  const opensLabel = opening.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+  form.elements.capital.value = state.data.monthlyCapital;
+  form.elements.capital.disabled = locked || future;
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = locked || future;
+  button.textContent = locked ? 'Capital locked' : future ? 'Not open yet' : 'Save & lock capital';
+  const countdown =
+    'A new entry opens on ' + opensLabel + ' (in ' + days + (days === 1 ? ' day).' : ' days).');
+  $('#capital-lock-status').textContent = future
+    ? monthName() + ' is not open yet. ' + countdown
+    : locked
+      ? 'Saved and locked for ' +
+        monthName() +
+        '. ' +
+        (month === current.slice(0, 7)
+          ? countdown
+          : 'Select the current month to enter its starting capital.')
+      : 'Starting capital has not been confirmed for ' +
+        monthName() +
+        '. Enter your amount, then save once to lock it.';
+}
+let pendingCapital = null;
+$('#capital-form').onsubmit = (e) => {
   e.preventDefault();
-  if (previewGuard()) return;
-  busy(e.currentTarget, true);
+  if (previewGuard() || state.data.capitalLocked) return;
+  pendingCapital = {
+    yearMonth: $('#month').value,
+    capital: e.currentTarget.elements.capital.value,
+    acknowledge_lock: true,
+  };
+  $('#capital-confirm-copy').textContent =
+    'Save ' +
+    money(pendingCapital.capital, 2) +
+    ' as the starting capital for ' +
+    monthName() +
+    '?';
+  $('#capital-dialog').showModal();
+};
+$('#confirm-capital').onclick = async () => {
+  if (!pendingCapital) return;
+  const button = $('#confirm-capital');
+  button.disabled = true;
   try {
-    await api('/api/capital', 'POST', {
-      yearMonth: $('#month').value,
-      capital: e.currentTarget.elements.capital.value,
-    });
+    await api('/api/capital', 'POST', pendingCapital);
+    pendingCapital = null;
+    $('#capital-dialog').close();
     await refresh();
-    toast('Starting capital updated.');
+    toast('Starting capital saved and locked for this month.');
   } catch (e) {
     toast(e.message, 'error');
+    await refresh();
   } finally {
-    busy($('#capital-form'), false);
+    button.disabled = false;
   }
 };
 $('#strategy-form').onsubmit = async (e) => {
