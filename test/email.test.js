@@ -50,3 +50,52 @@ test('weekly delivery is recorded once, uses registered recipient and never send
     else process.env.EMAIL_FROM = oldFrom;
   }
 });
+
+test('SMTP uses TLS, registered destination and Monday–Friday subject', async () => {
+  const nodemailer = require('nodemailer');
+  const email = require('../lib/email');
+  const original = nodemailer.createTransport;
+  const names = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'];
+  const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  let closed = false;
+  try {
+    Object.assign(process.env, {
+      SMTP_HOST: 'smtp.example.invalid',
+      SMTP_PORT: '465',
+      SMTP_SECURE: 'true',
+      SMTP_USER: 'test@example.invalid',
+      SMTP_PASS: 'test-only',
+      EMAIL_FROM: 'test@example.invalid',
+    });
+    nodemailer.createTransport = (options) => {
+      assert.equal(options.secure, true);
+      assert.equal(options.requireTLS, true);
+      return {
+        sendMail: async (payload) => {
+          assert.deepEqual(payload.to, ['recipient@example.invalid']);
+          assert.equal(
+            payload.subject,
+            'Trading Journal - Week 28 September 2026 to 2 October 2026',
+          );
+          return { accepted: payload.to, rejected: [], messageId: 'smtp-test' };
+        },
+        close: () => {
+          closed = true;
+        },
+      };
+    };
+    const result = await email.sendAccountEmail(
+      'recipient@example.invalid',
+      email.weekSubject('2026-09-28'),
+      'Test',
+    );
+    assert.equal(result.id, 'smtp-test');
+    assert.equal(closed, true);
+  } finally {
+    nodemailer.createTransport = original;
+    for (const name of names) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
+  }
+});

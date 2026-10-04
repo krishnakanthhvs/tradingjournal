@@ -30,7 +30,7 @@ All journal amounts are INR. Dates, challenge boundaries and weekly reports use 
 
 ## Weekly email summaries
 
-Set `RESEND_API_KEY` and `EMAIL_FROM` in the server environment. The sender must use a verified Resend domain. Restart the app, then enable **Settings → Weekly email summary** for the account. The destination is the account's registered email, never a browser-supplied recipient.
+Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and `EMAIL_FROM` in the server environment. Gmail uses smtp.gmail.com, port 465, SMTP_SECURE=true, and an app password. Keep credentials in the ignored .env file. SMTP takes precedence when configured. Alternatively, use `RESEND_API_KEY` with a verified Resend sender. Restart the app, then enable **Settings → Weekly email summary** for the account. The destination is the account's registered email, never a browser-supplied recipient.
 
 The running server checks on startup and hourly. After Monday 00:00 IST it sends the previous complete Monday–Sunday summary, including trade count, net P&L, win rate, fees and average result. One delivery is recorded per user/week. Empty weeks receive a zero-trade summary. A stopped server catches up the immediately previous week on restart; it does not send every historical week.
 
@@ -93,3 +93,5 @@ pm2 logs trading-journal --lines 0
 ```
 
 The migration adds columns and the quick-entry verification table; it does not recompute existing trades. Deploying code without this migration will cause missing-column/table errors. Locally, `npm run migrate` is sufficient when the configured role owns the tables.
+
+SMTP test: run `npm run email:test -- recipient@example.com`. An optional second argument selects the Monday date (YYYY-MM-DD). Weekly summaries cover Monday through Friday. SMTP attempts with uncertain delivery are not automatically retried; check provider delivery before manually retrying.
