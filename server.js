@@ -184,7 +184,20 @@ app.post(
     );
     if (!saved.rowCount)
       return res.status(409).json({ error: 'Starting capital is already locked for this month' });
-    res.json({ success: true });
+    const user = (await pool.query('SELECT email FROM users WHERE id=$1', [req.session.userId]))
+      .rows[0];
+    const label = new Date(month + '-01T00:00:00Z').toLocaleDateString('en-GB', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+    const emailSent = await email.notify(
+      user.email,
+      'capital-locked',
+      { month: label, capital },
+      `capital-${req.session.userId}-${month}`,
+    );
+    res.json({ success: true, emailSent });
   }),
 );
 app.get(
@@ -319,6 +332,51 @@ app.get(
     res.json({ ...settings, emailConfigured: email.configured(), lastEmail: last.sent_at });
   }),
 );
+async function savePreferences(id, values, weeklyOnly = false) {
+  const client = await pool.connect();
+  let user, changed;
+  try {
+    await client.query('BEGIN');
+    user = (await client.query('SELECT email FROM users WHERE id=$1 FOR UPDATE', [id])).rows[0];
+    const previous = (
+      await client.query('SELECT weekly_email FROM user_settings WHERE user_id=$1', [id])
+    ).rows[0];
+    changed = !!previous?.weekly_email !== values.weekly_email;
+    if (weeklyOnly) {
+      await client.query(
+        'INSERT INTO user_settings(user_id,weekly_email) VALUES($1,$2) ON CONFLICT(user_id) DO UPDATE SET weekly_email=$2',
+        [id, values.weekly_email],
+      );
+    } else {
+      await client.query(
+        'INSERT INTO user_settings(user_id,display_name,weekly_email,risk_per_trade,default_lot_size,show_ticker) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id) DO UPDATE SET display_name=$2,weekly_email=$3,risk_per_trade=$4,default_lot_size=$5,show_ticker=$6',
+        [id, values.name, values.weekly_email, values.risk, values.lot, values.show_ticker],
+      );
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  const emailSent = changed
+    ? await email.notify(
+        user.email,
+        'weekly-preference',
+        { enabled: values.weekly_email },
+        crypto.randomUUID(),
+      )
+    : null;
+  return { success: true, emailSent };
+}
+app.put(
+  '/api/settings/weekly-email',
+  wrap(async (req, res) => {
+    if (typeof req.body.enabled !== 'boolean') fail('Select On or Off');
+    res.json(await savePreferences(req.session.userId, { weekly_email: req.body.enabled }, true));
+  }),
+);
 app.put(
   '/api/settings',
   wrap(async (req, res) => {
@@ -331,11 +389,15 @@ app.put(
     const risk = number(b.risk_per_trade, 'risk percentage', 0.1, 100),
       lot = number(b.default_lot_size, 'lot size', 1, 100000);
     if (!Number.isInteger(lot)) fail('Lot size must be a whole number');
-    await pool.query(
-      `INSERT INTO user_settings(user_id,display_name,weekly_email,risk_per_trade,default_lot_size,show_ticker) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(user_id) DO UPDATE SET display_name=$2,weekly_email=$3,risk_per_trade=$4,default_lot_size=$5,show_ticker=$6`,
-      [req.session.userId, name, b.weekly_email, risk, lot, b.show_ticker],
+    res.json(
+      await savePreferences(req.session.userId, {
+        name,
+        weekly_email: b.weekly_email,
+        risk,
+        lot,
+        show_ticker: b.show_ticker,
+      }),
     );
-    res.json({ success: true });
   }),
 );
 const accountEmailLimit = rateLimit({
@@ -371,10 +433,10 @@ app.post(
       `INSERT INTO email_changes(user_id,email,code_hash,expires_at,attempts) VALUES($1,$2,$3,now()+interval '10 minutes',0) ON CONFLICT(user_id) DO UPDATE SET email=$2,code_hash=$3,expires_at=EXCLUDED.expires_at,attempts=0`,
       [req.session.userId, address, hash],
     );
-    await email.sendAccountEmail(
+    await email.sendTemplate(
       address,
-      'Verify your TradeJournal email',
-      `Your verification code is ${code}. It expires in 10 minutes. If you did not request this change, ignore this email.`,
+      'otp',
+      { code, purpose: 'email-change' },
       crypto.randomUUID(),
     );
     res.json({
@@ -418,7 +480,13 @@ app.post(
       ]);
       await client.query('DELETE FROM email_changes WHERE user_id=$1', [req.session.userId]);
       await client.query('COMMIT');
-      res.json({ success: true, email: pending.email });
+      const emailSent = await email.notify(
+        pending.email,
+        'email-changed',
+        { email: pending.email },
+        crypto.randomUUID(),
+      );
+      res.json({ success: true, email: pending.email, emailSent });
     } catch (e) {
       await client.query('ROLLBACK');
       if (e.code === '23505') return res.status(400).json({ error: 'This email is unavailable' });
@@ -434,10 +502,10 @@ app.post(
   wrap(async (req, res) => {
     const user = (await pool.query('SELECT email FROM users WHERE id=$1', [req.session.userId]))
       .rows[0];
-    await email.sendAccountEmail(
+    await email.sendTemplate(
       user.email,
-      'Your TradeJournal test email',
-      'Your email connection is working. Weekly trade summaries will be sent here when enabled in Settings. This test does not change your weekly email preference.',
+      'test',
+      {},
       `test-${req.session.userId}-${Math.floor(Date.now() / 60000)}`,
     );
     res.json({

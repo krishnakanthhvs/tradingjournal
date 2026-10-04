@@ -33,7 +33,14 @@ test('weekly delivery is recorded once, uses registered recipient and never send
     global.fetch = async (url, options) => {
       sent++;
       assert.equal(url, 'https://api.resend.com/emails');
-      assert.deepEqual(JSON.parse(options.body).to, ['registered@example.invalid']);
+      const payload = JSON.parse(options.body);
+      assert.deepEqual(payload.to, ['registered@example.invalid']);
+      assert.match(payload.html, /Your week, in perspective/);
+      assert.equal(payload.attachments[0].filename, 'tradejournal-week-2026-09-07.pdf');
+      assert.equal(
+        Buffer.from(payload.attachments[0].content, 'base64').subarray(0, 4).toString(),
+        '%PDF',
+      );
       assert.equal(options.headers['Idempotency-Key'], 'weekly-42-2026-09-07');
       return { ok: true, json: async () => ({ id: 'test-provider-id' }) };
     };

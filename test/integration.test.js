@@ -124,6 +124,32 @@ test(
         ).status,
         400,
       );
+      assert.match(messages.at(-1).subject, /Starting capital locked/);
+      assert.equal(
+        (await request('/api/settings/weekly-email', 'PUT', { enabled: true })).status,
+        200,
+      );
+      assert.match(messages.at(-1).subject, /turned on/);
+      const messageCount = messages.length;
+      await request('/api/settings/weekly-email', 'PUT', { enabled: true });
+      assert.equal(messages.length, messageCount);
+      assert.equal((await request('/api/settings')).data.display_name, 'Krishna');
+      await request('/api/settings/weekly-email', 'PUT', { enabled: false });
+      assert.match(messages.at(-1).subject, /turned off/);
+      mailer.sendAccountEmail = async () => {
+        throw new Error('Simulated provider outage');
+      };
+      const savedDespiteEmail = await request('/api/settings/weekly-email', 'PUT', {
+        enabled: true,
+      });
+      assert.equal(savedDespiteEmail.status, 200);
+      assert.equal(savedDespiteEmail.data.emailSent, false);
+      assert.equal((await request('/api/settings')).data.weekly_email, true);
+      mailer.sendAccountEmail = async (to, subject, text) => {
+        messages.push({ to, subject, text });
+        return { id: 'stub' };
+      };
+      await request('/api/settings/weekly-email', 'PUT', { enabled: false });
       const strategy = await request('/api/strategies', 'POST', { name: 'QA <script> strategy' });
       assert.equal(strategy.status, 201);
       const body = {

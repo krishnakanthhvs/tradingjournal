@@ -422,11 +422,19 @@
                     ><span
                       ><strong>Weekly email summary</strong
                       ><small
-                        >Previous Monday–Sunday, delivered to your registered email.
-                        Asia/Kolkata.</small
+                        >Previous Monday–Friday with a PDF report, delivered to your registered
+                        email. Asia/Kolkata.</small
                       ></span
-                    ><input type="checkbox" name="weekly_email" role="switch"
-                  /></label>
+                    ><span class="weekly-switch"
+                      ><input
+                        type="checkbox"
+                        name="weekly_email"
+                        role="switch"
+                        aria-label="Weekly email summary"
+                        aria-describedby="weekly-toggle-state"
+                      /><span id="weekly-toggle-state" aria-live="polite">Off</span></span
+                    ></label
+                  >
                   <p class="delivery-status" id="email-status"></p>
                   <label
                     >Appearance<select id="settings-theme">

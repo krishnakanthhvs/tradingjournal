@@ -4090,3 +4090,45 @@ button:disabled {
     padding-block: 0;
   }
 }
+
+/* Explicit state, contrasting track, and a larger target in both themes. */
+#view-settings .weekly-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+#view-settings .weekly-switch input {
+  width: 48px;
+  min-width: 48px;
+  height: 28px;
+  min-height: 28px;
+  padding: 3px;
+  background: #66758a;
+  border: 1px solid #66758a;
+  border-radius: 20px;
+  box-shadow: none;
+}
+#view-settings .weekly-switch input::before {
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  transform: translateX(0);
+}
+#view-settings .weekly-switch input:checked {
+  background: #315bd7;
+  border-color: #315bd7;
+}
+#view-settings .weekly-switch input:checked::before {
+  background: #fff;
+  transform: translateX(20px);
+}
+#weekly-toggle-state {
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 25px;
+}
+#view-settings .weekly-switch input:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}

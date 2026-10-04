@@ -517,11 +517,12 @@ function renderSettings() {
   for (const k of ['display_name', 'default_lot_size', 'risk_per_trade'])
     form.elements[k].value = s[k] ?? '';
   for (const k of ['weekly_email']) form.elements[k].checked = !!s[k];
+  updateWeeklySwitch();
   $('#email-status').textContent = state.demo
     ? 'Preview only. Connect an account to enable email summaries.'
     : s.emailConfigured
       ? `Delivery ready · Checked hourly after Monday 00:00 IST.${s.lastEmail ? ' Last sent: ' + new Date(s.lastEmail).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' : ''}`
-      : 'Email delivery is not configured yet. Your preference can be saved; the server needs an email provider key and verified sender.';
+      : 'Email delivery is not configured yet. Your preference can be saved; the server needs SMTP settings or an email provider and sender.';
   $('#menu-avatar').textContent = $('#top-avatar').textContent;
   $('#menu-name').textContent = name;
   $('#menu-email').textContent = state.user.email;
@@ -891,6 +892,42 @@ $('#challenge-form').onsubmit = async (e) => {
     busy(f, false);
   }
 };
+function updateWeeklySwitch() {
+  const input = $('#settings-form').elements.weekly_email;
+  $('#weekly-toggle-state').textContent = input.checked ? 'On' : 'Off';
+  input.setAttribute('aria-checked', String(input.checked));
+}
+$('#settings-form').elements.weekly_email.onchange = async (event) => {
+  const input = event.target,
+    before = !!state.settings.weekly_email;
+  if (previewGuard()) {
+    input.checked = before;
+    updateWeeklySwitch();
+    return;
+  }
+  const enabled = input.checked;
+  updateWeeklySwitch();
+  input.disabled = true;
+  busy($('#settings-form'), true);
+  try {
+    const result = await api('/api/settings/weekly-email', 'PUT', { enabled });
+    state.settings.weekly_email = enabled;
+    toast(
+      'Weekly email summary turned ' +
+        (enabled ? 'On.' : 'Off.') +
+        (result.emailSent === false
+          ? ' Preference saved, but the confirmation email could not be sent.'
+          : ''),
+    );
+  } catch (error) {
+    input.checked = before;
+    updateWeeklySwitch();
+    toast(error.message, 'error');
+  } finally {
+    input.disabled = false;
+    busy($('#settings-form'), false);
+  }
+};
 $('#settings-form').onsubmit = async (e) => {
   e.preventDefault();
   if (previewGuard()) return;
@@ -900,11 +937,14 @@ $('#settings-form').onsubmit = async (e) => {
     const data = Object.fromEntries(new FormData(f));
     data.weekly_email = f.elements.weekly_email.checked;
     data.show_ticker = false;
-    await api('/api/settings', 'PUT', data);
+    const result = await api('/api/settings', 'PUT', data);
     state.settings = await api('/api/settings');
     renderSettings();
 
-    toast('Preferences saved.');
+    toast(
+      'Preferences saved.' +
+        (result.emailSent === false ? ' Confirmation email could not be sent.' : ''),
+    );
   } catch (e) {
     toast(e.message, 'error');
   } finally {
@@ -968,11 +1008,14 @@ $('#confirm-capital').onclick = async () => {
   const button = $('#confirm-capital');
   button.disabled = true;
   try {
-    await api('/api/capital', 'POST', pendingCapital);
+    const result = await api('/api/capital', 'POST', pendingCapital);
     pendingCapital = null;
     $('#capital-dialog').close();
     await refresh();
-    toast('Starting capital saved and locked for this month.');
+    toast(
+      'Starting capital saved and locked for this month.' +
+        (result.emailSent === false ? ' Confirmation email could not be sent.' : ''),
+    );
   } catch (e) {
     toast(e.message, 'error');
     await refresh();
@@ -1167,7 +1210,10 @@ $('#email-verify-form').onsubmit = async (e) => {
     $('#email-change-form').reset();
     $('#account-email-status').textContent =
       'Email updated. You can now send a test email to confirm delivery.';
-    toast('Email updated successfully.');
+    toast(
+      'Email updated successfully.' +
+        (r.emailSent === false ? ' Confirmation email could not be sent.' : ''),
+    );
   } catch (e) {
     $('#account-email-status').textContent = e.message;
     toast(e.message, 'error');
